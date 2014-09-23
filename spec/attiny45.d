@@ -1,14 +1,16 @@
 module spec.attiny45; //we might want to make this a more generic AVR later on
 
+import std.stdio : writeln;
+
 import spec.base;
 import machine.state;
 
 class AtTiny45State : MachineState {
   Memory romMemory;
-  SimpleRegister!ubyte[32] valueRegisters;
+  SimpleRegister!(ubyte)[32] valueRegisters;
 
   this() {
-    test = new SimpleRegister!uint("henk", 0);
+    auto test = new SimpleRegister!uint("henk", 0);
     for(int i = 0; i < valueRegisters.length; i++) {
       valueRegisters[i] = new SimpleRegister!ubyte("r" ~ i.stringof, 0); 
     }
@@ -19,26 +21,32 @@ class AtTiny45State : MachineState {
   }
 
   @property Register[] registers() {
-    return [];
+    return cast(Register[])valueRegisters;
   }
 
 }
 
 class Adc : InstructionTemplate {
 
-  uint dest;
-  uint toAdd;
+    uint dest;
+    uint toAdd;
 
-  this(string[] parameters) {
-    name = "addi"; 
-  }
+    string name = "adi";
 
-  override cycleCount callback(inout MachineState state) pure {
-    AtTiny45State st = cast(AtTiny45State)state;
-    st.valueRegisters[dest].value += st.valueRegisters[toAdd].value;
-    return 0;
-  }
+    this(in string[] parameters) {
+        assert(parameters[0][0] == 'r');
+        string r = parameters[0][1 .. $];
+        writeln(r);
+    }
+
+    override cycleCount callback(inout MachineState state) pure {
+        AtTiny45State st = cast(AtTiny45State)state;
+        st.valueRegisters[dest].value += st.valueRegisters[toAdd].value;
+        return 1;
+    }
 }
 
-
-
+void main()
+{
+    const auto adc = new Adc(["r1", "0x05"]);
+}

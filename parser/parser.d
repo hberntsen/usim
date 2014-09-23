@@ -1,4 +1,5 @@
 module parser.parser;
+
 import std.file;
 import std.regex;
 import std.conv;
@@ -21,7 +22,7 @@ struct CodeSection {
 }
 
 
-InstructionToken parseLine(int lineNumber, in string line) {
+InstructionToken parseLine(in int lineNumber, in string line) {
   auto r = ctRegex!(`\s*([0-9a-f]*):\s((?:[0-9a-f]*\s)*)\s*([a-z]*)\s((?:[a-zA-Z0-9\+]*,?\s*)*)\s*;`);
   auto matches =  matchFirst(line, r);
   assert(!matches.empty);
