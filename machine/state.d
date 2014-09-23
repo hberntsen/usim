@@ -1,6 +1,6 @@
 module machine.state;
 
-import std.stdio;
+import std.stdio : writeln;
 import std.conv;
 import std.bitmanip;
 
@@ -12,8 +12,8 @@ abstract class Register
         return name;
     }
 
-    @property ubyte[] bytes();
-    @property ubyte[] bytes(ubyte[] newValue);
+    abstract @property ubyte[] bytes();
+    abstract @property ubyte[] bytes(ubyte[] newValue);
 
     this(in string name) {
         this._name = name;
@@ -24,12 +24,12 @@ class SimpleRegister(T) : Register
 {
     T value;
 
-    @property ubyte[] bytes() {
+    override @property ubyte[] bytes() {
         //todo: convert to ubytes
         return new ubyte[0];
     }
     //return to!ubyte[](value); }
-    @property ubyte[] bytes(ubyte[] newValue) {
+    override @property ubyte[] bytes(ubyte[] newValue) {
     //    value = newValue.read!T();
     //todo: some magic to convert the ubytes to our T
         return newValue;
@@ -49,11 +49,25 @@ class ReferenceRegister(T) : Register {
         return raw[offset .. offset + T.sizeof];
     };
 
+    @property ubyte[] bytes() const {
+        return raw[offset .. offset + T.sizeof].dup;
+    };
+
     override @property ubyte[] bytes(ubyte[] newValue) {
         assert(newValue.length == T.sizeof);
         auto slice = raw[offset .. offset + T.sizeof];
         slice[] = newValue;
         return slice;
+    }
+
+    @property T value() const {
+        ubyte[] buffer = bytes();
+        return buffer.read!T();
+    }
+    
+    @property T value(T newValue) {
+        bytes().write(newValue,0);
+        return newValue;
     }
 
     this(in string name, in ulong offset, Memory raw) {
@@ -76,6 +90,10 @@ class Memory {
         return data[i - offset];
     }
 
+    ubyte[] opSlice(size_t i1, size_t i2) const {
+        return data[i1 - offset .. i2 - offset].dup;
+    }
+    
     ubyte[] opSlice(size_t i1, size_t i2) {
         return data[i1 - offset .. i2 - offset];
     }
