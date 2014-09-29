@@ -7,6 +7,7 @@ import spec.base;
 import machine.state;
 import std.bitmanip;
 import core.bitop;
+import parser.parser : InstructionToken;
 
 class Sreg : ReferenceRegister!ubyte {
     private bool getBit(uint bitNum) const {
@@ -39,52 +40,6 @@ class Sreg : ReferenceRegister!ubyte {
 
     this(in ulong offset,Memory raw) {super("SREG",offset,raw);}
 }
-
-class InstructionsWrapper(T) {
-    Instruction!T[] instructions;
-    ulong currentInstruction = 0;
-    uint averageSize;
-    ulong addressOffset; //The instruction's offset in the real memory
-
-    this(uint averageSize) {
-        this.averageSize = averageSize;
-    }
-
-    invariant() {
-        assert(currentInstruction < instructions.length 
-                || instructions.length == 0);
-    }
-
-    Instruction!T relative(ulong offset) {
-        currentInstruction += offset;
-        return instructions[currentInstruction];
-    }
-
-    enum Direction {UP, DOWN, UNSET};
-    /**
-     If we want to find an instruction by address, we use our average
-     instruction size heuristic to find the correct position in the array
-     and then search until we find it.
-      */
-    Instruction!T absolute(ulong requestedAddress) {
-        auto guess = (requestedAddress-addressOffset) / averageSize;
-        Direction d = Direction.UNSET; 
-        Direction p = Direction.UNSET;
-        while(instructions[guess].address != requestedAddress) {
-            p = d;
-            if(instructions[guess].address > requestedAddress) {
-                guess--;
-                d = Direction.DOWN;
-            } else if(instructions[guess].address < requestedAddress) {
-                guess++;
-                d = Direction.UP;
-            }
-            enforce(d == p || p == Direction.UNSET,"No instruction at specified address");
-        }
-        return instructions[guess];
-    }
-}
-
 class AtMega2560State : MachineState {
     Memory data;
     Memory program;
@@ -99,7 +54,7 @@ class AtMega2560State : MachineState {
         program = new Memory(256 * 1024, 0);
         eeprom = new Memory(4 * 1024, 0);
         sreg = new Sreg(0x5f,program);
-        instructions = new InstructionsWrapper!AtMega2560State(2);
+        instructions = new InstructionsWrapper!AtMega2560State([]);
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data); 
         }
@@ -122,9 +77,9 @@ class AtMega2560State : MachineState {
 class Add : Instruction!AtMega2560State {
     uint dest;
     uint regToAdd;
-    string name = "Add";
 
     this(in string[] parameters) {
+        name = "Add";
         dest = parseNumericRegister(parameters[0]);
         regToAdd = parseNumericRegister(parameters[1]);
     }
@@ -137,6 +92,16 @@ class Add : Instruction!AtMega2560State {
         bool rd7 = cast(bool) rd & 0b10000000;
         bool rr7 = cast(bool) rr & 0b10000000;
         state.sreg.C = rd7 & rr7 + rr7 & !rd7 + !rd7 &rd7;
+        return 1;
+    }
+}
+
+class Nop : Instruction!AtMega2560State {
+    this(in InstructionToken token ) {
+        name = "Nop";
+        this.address = token.address;
+    }
+    override cycleCount callback(AtMega2560State state) {
         return 1;
     }
 }
