@@ -2,12 +2,17 @@ module spec.base;
 import machine.state;
 import std.exception : enforce;
 import std.conv;
+import parser.parser;
 
 alias cycleCount = uint;
 
 abstract class Instruction(T) {
-  cycleCount callback(T state);
-  
+    cycleCount callback(T state);
+    this(in InstructionToken token) {
+        this.address = token.address;
+        this.name = token.name;
+    }
+    
     protected static uint parseNumericRegister(string param) {
         enforce(param[0] == 'r');
         return to!uint(param[1..$]);

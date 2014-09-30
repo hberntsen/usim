@@ -78,10 +78,10 @@ class Add : Instruction!AtMega2560State {
     uint dest;
     uint regToAdd;
 
-    this(in string[] parameters) {
-        name = "Add";
-        dest = parseNumericRegister(parameters[0]);
-        regToAdd = parseNumericRegister(parameters[1]);
+    this(in InstructionToken token) {
+        super(token);
+        dest = parseNumericRegister(token.parameters[0]);
+        regToAdd = parseNumericRegister(token.parameters[1]);
     }
 
     override cycleCount callback(AtMega2560State state) {
@@ -97,10 +97,8 @@ class Add : Instruction!AtMega2560State {
 }
 
 class Nop : Instruction!AtMega2560State {
-    this(in InstructionToken token ) {
-        name = "Nop";
-        this.address = token.address;
-    }
+    this(in InstructionToken token) { super(token);}
+    
     override cycleCount callback(AtMega2560State state) {
         return 1;
     }
