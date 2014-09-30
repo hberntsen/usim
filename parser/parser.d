@@ -10,12 +10,21 @@ import std.string;
 // calls machineinstance.addinstruction(instruction object)
 
 
-struct InstructionToken {
+class InstructionToken {
   ulong lineNumber;
   ulong address;
   byte[] raw;
   string name;
   string[] parameters; 
+  this (ulong lineNumber, ulong address, byte[] raw, string name, string[]
+          parameters) 
+  {
+    this.lineNumber = lineNumber;
+    this.address = address;
+    this.raw = raw;
+    this.name = name;
+    this.parameters = parameters;
+  }
 }
 
 struct CodeSection {
@@ -56,26 +65,7 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
     //TODO: not a valid instruction
   }
   auto parameters = split(matches[0], ", ");
-  return InstructionToken (0, 0, new byte[0], "", new string[0]); //TODO: use retreived values
-}
-
-InstructionToken parseLine(in int lineNumber, in string line) {
-  auto r = ctRegex!(`\s*([0-9a-f]*):\s((?:[0-9a-f]*\s)*)\s*([a-z]*)\s((?:[a-zA-Z0-9\+]*,?\s*)*)\s*;`);
-  auto matches =  matchFirst(line, r);
-  assert(!matches.empty);
-  writeln(matches);
-  writeln(matches.length());
-  foreach(mat; matches) {
-    writeln(mat);
-  }
-  InstructionToken token = InstructionToken (
-    lineNumber,
-    0xa8, //todo retrieve from matches[1]
-    new byte[0], //todo retrieve from matches[2]
-    matches[3],
-    new string[0] //todo: retrieve from matches[3]
-  );
-  return token;
+  return new InstructionToken (0, 0, new byte[0], "", new string[0]); //TODO: use retreived values
 }
 
 unittest {
@@ -87,7 +77,7 @@ unittest {
   auto tok2 = parseLine(123, "       0:\t0c 94 72 00 \tjmp 0xe4\t; 0xe4 <__ctors_end>");
 }
 
-void main() {
+unittest {
   auto tok2 = parseInstruction(123, "       0:\t0c 94 72 00 \tjmp\t0xe4, Z+\t; 0xe4 <__ctors_end>");
   auto tok3 = parseInstruction(123, "       0:\t0c 94 72 00 \tjmp\t0xe4\t; 0xe4 <__ctors_end>");
 }
