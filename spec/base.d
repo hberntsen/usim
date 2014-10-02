@@ -18,15 +18,30 @@ abstract class Instruction(T) {
         return to!uint(param[1..$]);
     }
 
+    protected static int parseInt(string param) {
+        if(param[0] == '+' || param[0] == '.') {
+            return to!int(param[1..$]);
+        }
+        return to!int(param);
+    }
+
+    protected static ulong parseHex(string param) {
+        assert(param[0..2] == "0x");
+        string numericPart = param[2..$];
+        return parse!ulong(numericPart, 16); // parse!int(param[2..$],16);
+    }
+
     string name; //e.g. ADDI 
     ulong address; //absolute address of instruction in memory
 }
 
 class InstructionsWrapper(T) {
     private Instruction!T[] instructions;
-    private ulong currentInstruction = 0;
+    private ulong currentIndex = 0;
     private ulong averageSize;
     private ulong addressOffset; //The instruction's offset in the real memory
+
+    @property Instruction!T current() { return instructions[currentIndex];}
 
     this(Instruction!T[] instructions, ulong addressOffset = 0) {
         this.instructions = instructions;
@@ -49,13 +64,13 @@ class InstructionsWrapper(T) {
     }
 
     invariant() {
-        assert(currentInstruction < instructions.length 
+        assert(currentIndex < instructions.length 
                 || instructions.length == 0);
     }
 
-    Instruction!T relative(ulong offset) {
-        currentInstruction += offset;
-        return instructions[currentInstruction];
+    Instruction!T relativeJump(ulong offset) {
+        currentIndex += offset;
+        return instructions[currentIndex];
     }
 
     enum Direction {UP, DOWN, UNSET};
@@ -64,7 +79,7 @@ class InstructionsWrapper(T) {
      instruction size heuristic to find the correct position in the array
      and then search until we find it.
       */
-    Instruction!T absolute(ulong requestedAddress) {
+    Instruction!T jump(ulong requestedAddress) {
         auto guess = (requestedAddress-addressOffset) / averageSize;
         if(guess >= instructions.length) { guess = instructions.length - 1;}
         Direction d = Direction.UNSET; 
@@ -81,7 +96,7 @@ class InstructionsWrapper(T) {
             enforce(d == p || p == Direction.UNSET,
                     "No instruction at specified address");
         }
-        currentInstruction = guess;
+        currentIndex = guess;
         return instructions[guess];
     }
 }
@@ -89,8 +104,9 @@ class InstructionsWrapper(T) {
 unittest {
     class TestInstruction : Instruction!int {
         this (ulong address, string name) {
-            this.name=name;
-            this.address = address;
+            InstructionToken token = new InstructionToken(0, address,
+                    [],name,[]);
+            super(token);
         }
         override cycleCount callback(int state) {
             return 1;
@@ -103,14 +119,15 @@ unittest {
         new TestInstruction(4,"third-wide"),
         new TestInstruction(10,"fourth")
             ]);
-    assert(wrapper.relative(0).address == 0);
-    assert(wrapper.relative(1).address == 2);
-    assert(wrapper.relative(1).address == 4);
-    assert(wrapper.relative(-2).address == 0);
-    assert(wrapper.absolute(10).name == "fourth");
+
+    assert(wrapper.relativeJump(0).address == 0);
+    assert(wrapper.relativeJump(1).address == 2);
+    assert(wrapper.relativeJump(1).address == 4);
+    assert(wrapper.relativeJump(-2).address == 0);
+    assert(wrapper.jump(10).name == "fourth");
     bool exception = false;
     try {
-        wrapper.absolute(9); 
+        wrapper.jump(9); 
     } catch (Exception e) {
         exception = true;
     }

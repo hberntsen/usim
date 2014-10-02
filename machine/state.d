@@ -3,6 +3,7 @@ module machine.state;
 import std.stdio : writeln;
 import std.conv;
 import std.bitmanip;
+import std.system;
 
 abstract class Register
 {
@@ -61,12 +62,11 @@ class ReferenceRegister(T) : Register {
     }
 
     @property T value() const {
-        ubyte[] buffer = bytes();
-        return buffer.read!T();
+        return peek!(T,Endian.littleEndian)(bytes);
     }
     
     @property T value(T newValue) {
-        bytes().write(newValue,0);
+        bytes().write!(T,Endian.littleEndian)(newValue,0);
         return newValue;
     }
 
@@ -77,9 +77,23 @@ class ReferenceRegister(T) : Register {
     }
 }
 
+//Test the ReferenceRegister implementation with a stack example
+unittest {
+    Memory data = new Memory(8*1024+512,0);
+    ulong stackPointerLocation = 0x5d;
+    auto stackPointer = new ReferenceRegister!ushort("SP",cast(ulong)0x5d, data);
+    stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data.size - 2);
+    assert(stackPointer.value == 8703);
+    assert(data[stackPointerLocation] == 0xFF); //Low byte
+    assert(data[stackPointerLocation+1] == 0b00100001); //High byte
+    assert(stackPointer.value == 8703);
+}
+
 class Memory {
     ubyte[] data;
     ulong offset;
+
+    @property size_t size() { return data.length;}
 
     this(ulong size, ulong offset =0) {
         this.offset = offset;
