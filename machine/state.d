@@ -61,6 +61,8 @@ class ReferenceRegister(T) : Register {
         return slice;
     }
 
+    alias value this;
+
     @property T value() const {
         return peek!(T,Endian.littleEndian)(bytes);
     }
