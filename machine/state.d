@@ -104,6 +104,15 @@ class Memory {
         return data[i - offset];
     }
 
+    ubyte opIndexAssign(ubyte value, size_t i) {
+        data[i - offset] = value;
+        return value;
+    }
+
+    void opSliceAssign(in ubyte[] value, size_t i, size_t j) {
+        data[i - offset .. j -offset] = value;
+    }
+
     ubyte[] opSlice(size_t i1, size_t i2) const {
         return data[i1 - offset .. i2 - offset].dup;
     }
