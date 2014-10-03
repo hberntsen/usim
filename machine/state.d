@@ -84,6 +84,8 @@ unittest {
     Memory data = new Memory(8*1024+512,0);
     ulong stackPointerLocation = 0x5d;
     auto stackPointer = new ReferenceRegister!ushort("SP",cast(ulong)0x5d, data);
+    stackPointer.value = 123;
+    assert(stackPointer.value == 123);
     stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data.size - 2);
     assert(stackPointer.value == 8703);
     assert(data[stackPointerLocation] == 0xFF); //Low byte

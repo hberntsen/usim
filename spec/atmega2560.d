@@ -50,6 +50,11 @@ class AtMega2560State : MachineState {
     Sreg sreg;
     ReferenceRegister!ushort stackPointer;
 
+    invariant() {
+        //As specified in the ATmega2560 manual
+        assert(stackPointer.value > 0x0200);
+    }
+
     this() {
         data = new Memory(8 * 1024 + 512, 0);
         program = new Memory(256 * 1024, 0);
