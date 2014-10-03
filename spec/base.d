@@ -7,7 +7,7 @@ import parser.parser;
 alias cycleCount = uint;
 
 abstract class Instruction(T) {
-    cycleCount callback(T state);
+    cycleCount callback(T state) const;
     this(in InstructionToken token) {
         this.address = token.address;
         this.name = token.name;
@@ -108,7 +108,7 @@ unittest {
                     [],name,[]);
             super(token);
         }
-        override cycleCount callback(int state) {
+        override cycleCount callback(int state) const {
             return 1;
         }
     }

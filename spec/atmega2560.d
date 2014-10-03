@@ -104,7 +104,7 @@ class Add : Instruction!AtMega2560State {
         regToAdd = parseNumericRegister(token.parameters[1]);
     }
 
-    override cycleCount callback(AtMega2560State state) {
+    override cycleCount callback(AtMega2560State state) const {
         state.valueRegisters[dest].bytes[0] +=
             state.valueRegisters[regToAdd].bytes[0];
         ubyte rd = state.valueRegisters[dest].bytes[0];
@@ -119,7 +119,7 @@ class Add : Instruction!AtMega2560State {
 class Nop : Instruction!AtMega2560State {
     this(in InstructionToken token) { super(token);}
     
-    override cycleCount callback(AtMega2560State state) {
+    override cycleCount callback(AtMega2560State state) const {
         return 1;
     }
 }
