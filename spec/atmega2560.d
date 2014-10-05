@@ -45,10 +45,11 @@ class AtMega2560State : MachineState {
     Memory data;
     Memory program;
     Memory eeprom;
-    protected InstructionsWrapper!AtMega2560State instructions;
-    ReferenceRegister!(ubyte)[32] valueRegisters;
     Sreg sreg;
     ReferenceRegister!ushort stackPointer;
+    protected InstructionsWrapper!AtMega2560State instructions;
+    ReferenceRegister!(ubyte)[32] valueRegisters;
+    SimpleRegister!ubyte result;
 
     invariant() {
         //As specified in the ATmega2560 manual
@@ -69,6 +70,7 @@ class AtMega2560State : MachineState {
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data); 
         }
+        result = new SimpleRegister!ubyte("R", 0);
     }
 
     @property Memory[string] memories() {
@@ -95,7 +97,7 @@ class AtMega2560State : MachineState {
         instructions.relativeJump(instructionOffset);
     }
 
-    
+
 }
 
 /** Add without Carry */
@@ -110,24 +112,129 @@ class Add : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.valueRegisters[dest].bytes[0] +=
-            state.valueRegisters[regToAdd].bytes[0];
-        ubyte rd = state.valueRegisters[dest].bytes[0];
+        ubyte rd = state.valueRegisters[dest].bytes[0];    //todo: dit met hele registers ipv 1 byte
         ubyte rr = state.valueRegisters[regToAdd].bytes[0];
-        bool rd7 = cast(bool) rd & 0b10000000;
-        bool rr7 = cast(bool) rr & 0b10000000;
-        state.sreg.C = rd7 & rr7 + rr7 & !rd7 + !rd7 &rd7;
+        state.result.bytes[0] = rr + rd;
+        state.valueRegisters[dest].bytes[0] = state.result.bytes[0];
+        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
+        bool rr3 = cast(bool)(rr & 0b00000100);
+        bool r3 = cast(bool)(state.result.bytes[0] & 0b00000100);
+        bool rd7 = cast(bool)(rd & 0b10000000);
+        bool rr7 = cast(bool)(rr & 0b10000000);
+        bool r7 = cast(bool)(state.result.bytes[0] & 0b10000000);
+        state.sreg.H = rd3 && rr3 || rr3 && !r3 || !r3 && rd3;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.V = rd7 && rr7 && !r7 || !rd7 && !rr7 && r7;
+        state.sreg.N = r7;
+        state.sreg.Z = state.result.bytes[0] == 0;
+        state.sreg.C = rd7 && rr7 || rr7 && !r7 || !r7 && rd7;
         return 1;
     }
 }
 
 class Nop : Instruction!AtMega2560State {
     this(in InstructionToken token) { super(token);}
-    
+
     override cycleCount callback(AtMega2560State state) const {
         return 1;
     }
 }
+
+// Global interrupt disable
+class Cli : Instruction!AtMega2560State {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.sreg.I = false;
+        return 1;
+    }
+}
+
+// Compare with carry
+class Cpc : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        auto rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
+        auto rr = state.valueRegisters[regr].bytes[0];
+        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
+        bool rr3 = cast(bool)(rr & 0b00000100);
+        bool r3 = cast(bool)(state.result.bytes[0] & 0b00000100);
+        bool rd7 = cast(bool)(rd & 0b10000000);
+        bool rr7 = cast(bool)(rr & 0b10000000);
+        bool r7 = cast(bool)(state.result.bytes[0] & 0b10000000);
+        state.sreg.H = !rd3 && rr3 || rr3 && r3 || r3 && !rd3;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.V = rd7 && !rr7 && !r7 || !rd7 && rr7 && r7;
+        state.sreg.N = r7;
+        if(state.result != 0)
+            state.sreg.Z = false;
+        state.sreg.C = !rd7 && rr7 || rr7 && r7 || r7 && !rd7;
+        return 1;
+    }
+}
+
+/* Compare with immediate */
+class Cpi : Instruction!AtMega2560State {
+    uint regd;
+    uint k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = parseInt(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        auto rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
+        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
+        bool k3 = cast(bool)(k & 0b00000100);
+        bool r3 = cast(bool)(state.result.bytes[0] & 0b00000100);
+        bool rd7 = cast(bool)(rd & 0b10000000);
+        bool k7 = cast(bool)(k & 0b10000000);
+        bool r7 = cast(bool)(state.result.bytes[0] & 0b10000000);
+        state.sreg.H = !rd3 && k3 || k3 && r3 || r3 && !rd3;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.V = rd7 && !k7 && !r7 || !rd7 && k7 && r7;
+        state.sreg.N = r7;
+        state.sreg.Z = state.result.bytes[0] == 0;
+        state.sreg.C = !rd7 && k7 || k7 && r7 || r7 && !rd7;
+        return 1;
+    }
+}
+
+/* Exclusive OR */
+class Eor : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
+        ubyte rr = state.valueRegisters[regr].bytes[0];
+        state.result.bytes[0] = rr ^ rd;
+        state.valueRegisters[regd].bytes[0] = state.result.bytes[0];
+        bool r7 = cast(bool)(state.result.bytes[0] & 0b10000000);
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.V = false;
+        state.sreg.N = r7;
+        state.sreg.Z = state.result.bytes[0] == 0;
+        return 1;
+    }
+}
+
 
 //TODO: fix this test for our add instruction
 /*
