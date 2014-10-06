@@ -189,7 +189,7 @@ class Cpi : Instruction!AtMega2560State {
     this(in InstructionToken token) {
         super(token);
         regd = parseNumericRegister(token.parameters[0]);
-        k = parseInt(token.parameters[1]);
+        k = parseHex(token.parameters[1]);
     }
 
     override cycleCount callback(AtMega2560State state) const {
@@ -235,6 +235,22 @@ class Eor : Instruction!AtMega2560State {
     }
 }
 
+/* Load immediate */
+class Ldi : Instruction!AtMega2560State {
+    uint regd;
+    uint k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.valueRegisters[regd].bytes[0] = k;
+        return 1;
+    }
+}
 
 //TODO: fix this test for our add instruction
 /*
