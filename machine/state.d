@@ -61,6 +61,8 @@ class ReferenceRegister(T) : Register {
         return slice;
     }
 
+    alias value this;
+
     @property T value() const {
         return peek!(T,Endian.littleEndian)(bytes);
     }
@@ -82,6 +84,8 @@ unittest {
     Memory data = new Memory(8*1024+512,0);
     ulong stackPointerLocation = 0x5d;
     auto stackPointer = new ReferenceRegister!ushort("SP",cast(ulong)0x5d, data);
+    stackPointer.value = 123;
+    assert(stackPointer.value == 123);
     stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data.size - 2);
     assert(stackPointer.value == 8703);
     assert(data[stackPointerLocation] == 0xFF); //Low byte
@@ -102,6 +106,15 @@ class Memory {
 
     ubyte opIndex(size_t i) {
         return data[i - offset];
+    }
+
+    ubyte opIndexAssign(ubyte value, size_t i) {
+        data[i - offset] = value;
+        return value;
+    }
+
+    void opSliceAssign(in ubyte[] value, size_t i, size_t j) {
+        data[i - offset .. j -offset] = value;
     }
 
     ubyte[] opSlice(size_t i1, size_t i2) const {
