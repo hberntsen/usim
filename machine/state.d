@@ -66,7 +66,7 @@ class ReferenceRegister(T) : Register {
     @property T value() const {
         return peek!(T,Endian.littleEndian)(bytes);
     }
-    
+
     @property T value(T newValue) {
         bytes().write!(T,Endian.littleEndian)(newValue,0);
         return newValue;
@@ -120,7 +120,7 @@ class Memory {
     ubyte[] opSlice(size_t i1, size_t i2) const {
         return data[i1 - offset .. i2 - offset].dup;
     }
-    
+
     ubyte[] opSlice(size_t i1, size_t i2) {
         return data[i1 - offset .. i2 - offset];
     }
