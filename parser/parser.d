@@ -49,7 +49,7 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
   if(matches.length < 2) {
     return null;
   }
-  ulong address = matches[1].to!ulong(16);
+  size_t address = matches[1].to!size_t(16);
   r = ctRegex!(`^((?:[0-9a-f]{2}\s)*)\s*$`);
   matches = matchFirst(pieces[1], r);
   if(matches.length < 2) {
@@ -97,7 +97,8 @@ unittest {
   writeln(tok2);
 }
 
-void main(string[] args) {
+unittest {
+  string[] args = ["main.d", "tests/test_write/test_write_atmega2560.dump"];
   if (args.length < 2) {
     writeln("usage: parser FILENAME");
     return;
