@@ -8,19 +8,18 @@ import std.array;
 import std.string;
 import std.format;
 import std.algorithm;
-// Input: object dump file, machine instance. 
+// Input: object dump file, machine instance.
 // calls machineinstance.addinstruction(instruction object)
 
 
 class InstructionToken {
-  ulong lineNumber;
-  ulong address;
+  size_t lineNumber;
+  size_t address;
   ubyte[] raw;
   string name;
-  string[] parameters; 
-  
-  this (ulong lineNumber, ulong address, ubyte[] raw, string name, string[]
-          parameters) 
+  string[] parameters;
+  this (size_t lineNumber, size_t address, ubyte[] raw, string name, string[]
+          parameters)
   {
     this.lineNumber = lineNumber;
     this.address = address;
@@ -36,7 +35,7 @@ class InstructionToken {
 }
 
 struct CodeSection {
- ulong address;
+ size_t address;
  string name;
 }
 

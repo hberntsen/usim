@@ -21,24 +21,24 @@ class Sreg : ReferenceRegister!ubyte {
         }
         return state;
     }
-    @property bool I() const { return getBit(7); } 
+    @property bool I() const { return getBit(7); }
     @property bool I(bool newValue) { return setBit(7,newValue);}
-    @property bool T() const { return getBit(6); } 
+    @property bool T() const { return getBit(6); }
     @property bool T(bool newValue) { return setBit(6,newValue);}
-    @property bool H() const { return getBit(5); } 
+    @property bool H() const { return getBit(5); }
     @property bool H(bool newValue) { return setBit(5,newValue);}
-    @property bool S() const { return getBit(4); } 
+    @property bool S() const { return getBit(4); }
     @property bool S(bool newValue) { return setBit(4,newValue);}
-    @property bool V() const { return getBit(3); } 
+    @property bool V() const { return getBit(3); }
     @property bool V(bool newvalue) { return setBit(3,newvalue);}
-    @property bool N() const { return getBit(2); } 
+    @property bool N() const { return getBit(2); }
     @property bool N(bool newvalue) { return setBit(2,newvalue);}
-    @property bool Z() const { return getBit(1); } 
+    @property bool Z() const { return getBit(1); }
     @property bool Z(bool newvalue) { return setBit(1,newvalue);}
-    @property bool C() const { return getBit(0); } 
+    @property bool C() const { return getBit(0); }
     @property bool C(bool newvalue) { return setBit(0,newvalue);}
 
-    this(in ulong offset,Memory raw) {super("SREG",offset,raw);}
+    this(in size_t offset,Memory raw) {super("SREG",offset,raw);}
 }
 
 class AtMega2560State : MachineState {
@@ -63,12 +63,12 @@ class AtMega2560State : MachineState {
         sreg = new Sreg(0x5f,program);
         //The stack pointer's initial value points to the end of the internal
         //SRAM: 8703
-        stackPointer = new ReferenceRegister!ushort("SP",cast(ulong)0x5d, data);
+        stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data);
         stackPointer.value = cast(ushort)(data.size - 2);
 
         instructions = new InstructionsWrapper!AtMega2560State([]);
         for(int i = 0; i < valueRegisters.length; i++) {
-            valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data); 
+            valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
         }
         result = new SimpleRegister!ubyte("R", 0);
     }
@@ -89,7 +89,7 @@ class AtMega2560State : MachineState {
         return instructions.current;
     }
 
-    void jump(ulong address) {
+    void jump(size_t address) {
         instructions.jump(address);
     }
 
@@ -114,7 +114,7 @@ class Add : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
         ubyte rd = state.valueRegisters[dest].bytes[0];    //todo: dit met hele registers ipv 1 byte
         ubyte rr = state.valueRegisters[regToAdd].bytes[0];
-        state.result.bytes[0] = rr + rd;
+        state.result.bytes[0] = cast(ubyte)(rr + rd);
         state.valueRegisters[dest].bytes[0] = state.result.bytes[0];
         bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
         bool rr3 = cast(bool)(rr & 0b00000100);
@@ -174,7 +174,7 @@ class Cpc : Instruction!AtMega2560State {
         state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.V = rd7 && !rr7 && !r7 || !rd7 && rr7 && r7;
         state.sreg.N = r7;
-        if(state.result != 0)
+        if(state.result.bytes[0] != 0)
             state.sreg.Z = false;
         state.sreg.C = !rd7 && rr7 || rr7 && r7 || r7 && !rd7;
         return 1;
@@ -247,7 +247,7 @@ class Ldi : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.valueRegisters[regd].bytes[0] = k;
+        state.valueRegisters[regd].bytes[0] = cast(ubyte)k;
         return 1;
     }
 }

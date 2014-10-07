@@ -12,7 +12,7 @@ abstract class Instruction(T) {
         this.address = token.address;
         this.name = token.name;
     }
-    
+
     protected static uint parseNumericRegister(string param) {
         enforce(param[0] == 'r');
         return to!uint(param[1..$]);
@@ -25,36 +25,36 @@ abstract class Instruction(T) {
         return to!int(param);
     }
 
-    protected static ulong parseHex(string param) {
+    protected static size_t parseHex(string param) {
         assert(param[0..2] == "0x");
         string numericPart = param[2..$];
-        return parse!ulong(numericPart, 16); // parse!int(param[2..$],16);
+        return parse!size_t(numericPart, 16); // parse!int(param[2..$],16);
     }
 
-    string name; //e.g. ADDI 
-    ulong address; //absolute address of instruction in memory
+    string name; //e.g. ADDI
+    size_t address; //absolute address of instruction in memory
 }
 
 class InstructionsWrapper(T) {
     private Instruction!T[] instructions;
-    private ulong currentIndex = 0;
-    private ulong averageSize;
-    private ulong addressOffset; //The instruction's offset in the real memory
+    private size_t currentIndex = 0;
+    private size_t averageSize;
+    private size_t addressOffset; //The instruction's offset in the real memory
 
     @property Instruction!T current() { return instructions[currentIndex];}
 
-    this(Instruction!T[] instructions, ulong addressOffset = 0) {
+    this(Instruction!T[] instructions, size_t addressOffset = 0) {
         this.instructions = instructions;
         this.averageSize = averageInstructionSize(instructions);
     }
 
-    private static ulong averageInstructionSize(in Instruction!T[] instructions)
+    private static size_t averageInstructionSize(in Instruction!T[] instructions)
     out(result) {
         assert((instructions.length == 0 && result == 0) || result > 0);
     }
     body {
-        ulong average = 0;
-        ulong previousAddr = 0;
+        size_t average = 0;
+        size_t previousAddr = 0;
         foreach(i,instruction; instructions){
             assert(instruction.address > previousAddr || i == 0);
             average += instruction.address - previousAddr;
@@ -64,11 +64,11 @@ class InstructionsWrapper(T) {
     }
 
     invariant() {
-        assert(currentIndex < instructions.length 
+        assert(currentIndex < instructions.length
                 || instructions.length == 0);
     }
 
-    Instruction!T relativeJump(ulong offset) {
+    Instruction!T relativeJump(size_t offset) {
         currentIndex += offset;
         return instructions[currentIndex];
     }
@@ -79,10 +79,10 @@ class InstructionsWrapper(T) {
      instruction size heuristic to find the correct position in the array
      and then search until we find it.
       */
-    Instruction!T jump(ulong requestedAddress) {
+    Instruction!T jump(size_t requestedAddress) {
         auto guess = (requestedAddress-addressOffset) / averageSize;
         if(guess >= instructions.length) { guess = instructions.length - 1;}
-        Direction d = Direction.UNSET; 
+        Direction d = Direction.UNSET;
         Direction p = Direction.UNSET;
         while(instructions[guess].address != requestedAddress) {
             p = d;
@@ -103,7 +103,7 @@ class InstructionsWrapper(T) {
 
 unittest {
     class TestInstruction : Instruction!int {
-        this (ulong address, string name) {
+        this (size_t address, string name) {
             InstructionToken token = new InstructionToken(0, address,
                     [],name,[]);
             super(token);
@@ -127,7 +127,7 @@ unittest {
     assert(wrapper.jump(10).name == "fourth");
     bool exception = false;
     try {
-        wrapper.jump(9); 
+        wrapper.jump(9);
     } catch (Exception e) {
         exception = true;
     }

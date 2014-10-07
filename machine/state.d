@@ -44,7 +44,7 @@ class SimpleRegister(T) : Register
 
 class ReferenceRegister(T) : Register {
     Memory raw;
-    ulong offset;
+    size_t offset;
 
     override @property ubyte[] bytes() {
         return raw[offset .. offset + T.sizeof];
@@ -72,7 +72,7 @@ class ReferenceRegister(T) : Register {
         return newValue;
     }
 
-    this(in string name, in ulong offset, Memory raw) {
+    this(in string name, in size_t offset, Memory raw) {
         super(name);
         this.offset = offset;
         this.raw = raw;
@@ -82,8 +82,8 @@ class ReferenceRegister(T) : Register {
 //Test the ReferenceRegister implementation with a stack example
 unittest {
     Memory data = new Memory(8*1024+512,0);
-    ulong stackPointerLocation = 0x5d;
-    auto stackPointer = new ReferenceRegister!ushort("SP",cast(ulong)0x5d, data);
+    size_t stackPointerLocation = 0x5d;
+    auto stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data);
     stackPointer.value = 123;
     assert(stackPointer.value == 123);
     stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data.size - 2);
@@ -95,11 +95,11 @@ unittest {
 
 class Memory {
     ubyte[] data;
-    ulong offset;
+    size_t offset;
 
     @property size_t size() { return data.length;}
 
-    this(ulong size, ulong offset =0) {
+    this(size_t size, size_t offset =0) {
         this.offset = offset;
         this.data = new ubyte[size];
     }
