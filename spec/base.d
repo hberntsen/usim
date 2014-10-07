@@ -25,10 +25,10 @@ abstract class Instruction(T) {
         return to!int(param);
     }
 
-    protected static size_t parseHex(string param) {
+    protected static uint parseHex(string param) {
         assert(param[0..2] == "0x");
         string numericPart = param[2..$];
-        return parse!size_t(numericPart, 16); // parse!int(param[2..$],16);
+        return parse!uint(numericPart, 16); // parse!int(param[2..$],16);
     }
 
     string name; //e.g. ADDI

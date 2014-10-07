@@ -2,6 +2,7 @@ module spec.atmega2560; //we might want to make this a more generic AVR later on
 
 import std.stdio : writeln;
 import std.conv;
+import std.system;
 
 import spec.base;
 import machine.state;
@@ -56,6 +57,12 @@ class AtMega2560State : MachineState {
         assert(stackPointer.value > 0x0200);
     }
 
+    @property size_t programCounter() { return instructions.current.address/2; }
+    @property size_t programCounter(size_t newpc) {
+        instructions.jump(newpc*2);
+        return programCounter();
+    }
+
     this() {
         data = new Memory(8 * 1024 + 512, 0);
         program = new Memory(256 * 1024, 0);
@@ -81,12 +88,12 @@ class AtMega2560State : MachineState {
         return cast(Register[])valueRegisters;
     }
 
-    cycleCount apply(Instruction!AtMega2560State instruction) {
-        return instruction.callback(this);
-    }
-
     @property Instruction!AtMega2560State currentInstruction() {
         return instructions.current;
+    }
+
+    void setInstructions(Instruction!AtMega2560State[] instructions) {
+        this.instructions = new InstructionsWrapper!AtMega2560State(instructions);
     }
 
     void jump(size_t address) {
@@ -96,8 +103,6 @@ class AtMega2560State : MachineState {
     void relativeJump(int instructionOffset) {
         instructions.relativeJump(instructionOffset);
     }
-
-
 }
 
 /** Add without Carry */
