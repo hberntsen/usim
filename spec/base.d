@@ -53,6 +53,9 @@ class InstructionsWrapper(T) {
         assert((instructions.length == 0 && result == 0) || result > 0);
     }
     body {
+        if(instructions.length == 0) {
+            return 0;
+        }
         size_t average = 0;
         size_t previousAddr = 0;
         foreach(i,instruction; instructions){

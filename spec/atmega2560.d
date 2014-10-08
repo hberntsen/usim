@@ -73,7 +73,6 @@ class AtMega2560State : MachineState {
         stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data);
         stackPointer.value = cast(ushort)(data.size - 2);
 
-        instructions = new InstructionsWrapper!AtMega2560State([]);
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
         }
