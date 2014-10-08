@@ -12,7 +12,7 @@ import parser.parser : InstructionToken;
 
 class Sreg : ReferenceRegister!ubyte {
     private bool getBit(uint bitNum) const {
-        return to!bool(bytes()[0] & (1 << bitNum));
+        return cast(bool)(bytes()[0] & (1 << bitNum));
     }
     private bool setBit(uint bitNum, bool state) {
         if(state) {
@@ -40,6 +40,14 @@ class Sreg : ReferenceRegister!ubyte {
     @property bool C(bool newvalue) { return setBit(0,newvalue);}
 
     this(in size_t offset,Memory raw) {super("SREG",offset,raw);}
+}
+unittest {
+    Memory mem = new Memory(1,0);
+    Sreg sreg = new Sreg(0,mem);
+    assert(mem[0] == 0);
+    sreg.Z = true;
+    assert(sreg.Z = true);
+    assert(mem[0] == 0b00000010);
 }
 
 class AtMega2560State : MachineState {
