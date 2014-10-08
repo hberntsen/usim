@@ -83,16 +83,20 @@ class InstructionsWrapper(T) {
      and then search until we find it.
       */
     Instruction!T jump(size_t requestedAddress) {
-        auto guess = (requestedAddress-addressOffset) / averageSize;
+        assert(instructions.length > 0);
+        size_t guess = (requestedAddress-addressOffset) / averageSize;
         if(guess >= instructions.length) { guess = instructions.length - 1;}
         Direction d = Direction.UNSET;
         Direction p = Direction.UNSET;
         while(instructions[guess].address != requestedAddress) {
             p = d;
             if(instructions[guess].address > requestedAddress) {
+                enforce(guess > 0,"Instruction not found(underflow in search)");
                 guess--;
                 d = Direction.DOWN;
             } else if(instructions[guess].address < requestedAddress) {
+                enforce(guess < instructions.length-1,"Instruction not
+                        found(overflow in search)");
                 guess++;
                 d = Direction.UP;
             }
