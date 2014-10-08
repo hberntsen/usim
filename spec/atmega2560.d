@@ -257,17 +257,18 @@ class Ldi : Instruction!AtMega2560State {
 }
 
 class Rjmp : Instruction!AtMega2560State {
-    const int jumpOffset;
+    const size_t destAddress;
 
     this(in InstructionToken token) {
         super(token);
-        jumpOffset = parseInt(token.parameters[0]);
+        int jumpOffset = parseInt(token.parameters[0]);
         assert(jumpOffset <= 2000);
         assert(-2000 <= jumpOffset);
+        destAddress = this.address + 2 + jumpOffset;
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.relativeJump(jumpOffset);
+        state.jump(destAddress);
         return 2;
     }
 }
@@ -275,7 +276,7 @@ unittest {
     auto state = new AtMega2560State();
     auto rjmp = new Rjmp(new InstructionToken(0,0,[],"rjmp",[".+2"]));
     auto nop1 = new Nop(new InstructionToken(0,2,[],"nop1",[]));
-    auto rjmp2 = new Rjmp(new InstructionToken(0,4,[],"rjmp",["-1"]));
+    auto rjmp2 = new Rjmp(new InstructionToken(0,4,[],"rjmp",[".-4"]));
     state.setInstructions([rjmp,nop1,rjmp2]);
     auto cycles = rjmp.callback(state);
     assert(cycles == 2);
