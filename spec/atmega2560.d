@@ -122,10 +122,10 @@ class Add : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        ubyte rd = state.valueRegisters[dest].bytes[0];    //todo: dit met hele registers ipv 1 byte
-        ubyte rr = state.valueRegisters[regToAdd].bytes[0];
+        ubyte rd = state.valueRegisters[dest].value;
+        ubyte rr = state.valueRegisters[regToAdd].value;
         ubyte result = cast(ubyte)(rr + rd);
-        state.valueRegisters[dest].bytes[0] = result;
+        state.valueRegisters[dest].value = result;
         bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
         bool rr3 = cast(bool)(rr & 0b00000100);
         bool r3 = cast(bool)(result & 0b00000100);
@@ -172,8 +172,8 @@ class Cpc : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        auto rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
-        auto rr = state.valueRegisters[regr].bytes[0];
+        auto rd = state.valueRegisters[regd].value;
+        auto rr = state.valueRegisters[regr].value;
         ubyte result = cast(ubyte)(rd - rr - state.sreg.C); //todo: unittesten
         bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
         bool rr3 = cast(bool)(rr & 0b00000100);
@@ -204,7 +204,7 @@ class Cpi : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        auto rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
+        auto rd = state.valueRegisters[regd].value;
         ubyte result = cast(ubyte)(rd - k); //todo: unittesten
         bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
         bool k3 = cast(bool)(k & 0b00000100);
@@ -234,10 +234,10 @@ class Eor : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        ubyte rd = state.valueRegisters[regd].bytes[0];    //todo: dit met hele registers ipv 1 byte
-        ubyte rr = state.valueRegisters[regr].bytes[0];
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte rr = state.valueRegisters[regr].value;
         ubyte result = rr ^ rd;
-        state.valueRegisters[regd].bytes[0] = result;
+        state.valueRegisters[regd].value = result;
         bool r7 = cast(bool)(result & 0b10000000);
         state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.V = false;
@@ -259,7 +259,7 @@ class Ldi : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.valueRegisters[regd].bytes[0] = cast(ubyte)k;
+        state.valueRegisters[regd].value = cast(ubyte)k;
         return 1;
     }
 }
