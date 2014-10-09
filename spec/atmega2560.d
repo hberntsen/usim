@@ -55,6 +55,7 @@ class AtMega2560State : MachineState {
     Memory program;
     Memory eeprom;
     Sreg sreg;
+    ReferenceRegister!ushort xreg, yreg, zreg;
     ReferenceRegister!ushort stackPointer;
     protected InstructionsWrapper!AtMega2560State instructions;
     ReferenceRegister!(ubyte)[32] valueRegisters;
@@ -75,6 +76,9 @@ class AtMega2560State : MachineState {
         program = new Memory(256 * 1024, 0);
         eeprom = new Memory(4 * 1024, 0);
         sreg = new Sreg(0x5f,program);
+        xreg = new ReferenceRegister!ushort("X", 26, data);
+        yreg = new ReferenceRegister!ushort("Y", 28, data);
+        zreg = new ReferenceRegister!ushort("Z", 30, data);
         //The stack pointer's initial value points to the end of the internal
         //SRAM: 8703
         stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data);
@@ -83,6 +87,10 @@ class AtMega2560State : MachineState {
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
         }
+    }
+
+    @property ReferenceRegister!ushort[string] refregs() {
+        return ["X": xreg, "Y": yreg, "Z": zreg];
     }
 
     @property Memory[string] memories() {
@@ -257,6 +265,87 @@ class Ldi : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
         state.valueRegisters[regd].value = cast(ubyte)k;
         return 1;
+    }
+}
+
+/* Load direct from data space */
+class Lds : Instruction!AtMega2560State {
+    uint regd;
+    uint address;
+
+    this(in InstructionToken token) {
+      super(token);
+      regd = parseNumericRegister(token.parameters[0]);
+      address = parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+      state.valueRegisters[regd].value = state.memories["data"][address];
+      return 2;
+    }
+}
+
+/* Store register to I/O location */
+/* TODO, but not necessarily for the first sprint target */
+class Out : Instruction!AtMega2560State {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AtMega2560State state) const { return 1; }
+}
+
+/* Store indirect from register to data space using index */
+class St : Instruction!AtMega2560State {
+    bool preinc, predec, postinc, postdec; //Probably not the most beautiful way...
+    string refreg;
+    uint regr;
+
+    this(in InstructionToken token) {
+      super(token);
+      if(token.parameters[0].length == 2) { //TODO: 'parsing' has to happen somewhere else, but is this general enough for base.d?
+        preinc = token.parameters[0][0] == '+';
+        predec = token.parameters[0][0] == '-';
+        if(preinc || predec)
+          refreg = token.parameters[0][1..1].dup;
+        else {
+          postinc = token.parameters[0][1] == '+';
+          postdec = token.parameters[0][1] == '-';
+          refreg = token.parameters[0][0..0].dup;
+        }
+      }
+      else
+        refreg = token.parameters[0];
+
+      regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+      if(preinc)
+        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
+      if(predec)
+        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+      state.memories["data"][state.refregs[refreg]] = state.valueRegisters[regr].value;
+      if(postinc)
+        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
+      if(postdec)
+        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+      return 1;
+    }
+}
+
+/* Store direct to data space */
+class Sts : Instruction!AtMega2560State {
+    uint address;
+    uint regr;
+
+    this(in InstructionToken token) {
+      super(token);
+      address = parseHex(token.parameters[0]);
+      regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+      state.memories["data"][address] = state.valueRegisters[regr].value;
+      return 2;
     }
 }
 
