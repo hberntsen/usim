@@ -108,6 +108,40 @@ class AtMega2560State : MachineState {
     void relativeJump(int instructionOffset) {
         instructions.relativeJump(instructionOffset);
     }
+
+    void setSregLogical(ubyte result) {
+      sreg.V = false;
+      sreg.N = cast(bool)(result & 0b1000000);
+      sreg.S = sreg.V ^ sreg.N;
+      sreg.Z = result == 0;
+    }
+
+    void setSregArithPos(ubyte a, ubyte b, ubyte c) {
+      bool[] bits = getRelevantBits(a, b, c);
+      sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
+      sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
+      sreg.N = bits[5];
+      sreg.S = sreg.V ^ sreg.N;
+      sreg.Z = c == 0;
+      sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
+    }
+
+    void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
+      bool[] bits = getRelevantBits(a, b, c);
+      sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
+      sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
+      sreg.N = bits[5];
+      sreg.S = sreg.V ^ sreg.N;
+      if(preserveZ && c != 0)
+        sreg.Z = false;
+      else if(!preserveZ)
+        sreg.Z = c == 0;
+      sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+    }
+
+    private bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
+      return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b1000000), cast(bool)(b & 0b00001000), cast(bool)(b & 0b1000000), cast(bool)(c & 0b00001000), cast(bool)(c & 0b1000000)];
+    }
 }
 
 /** Add without Carry */
@@ -126,18 +160,7 @@ class Add : Instruction!AtMega2560State {
         ubyte rr = state.valueRegisters[regToAdd].value;
         ubyte result = cast(ubyte)(rr + rd);
         state.valueRegisters[dest].value = result;
-        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
-        bool rr3 = cast(bool)(rr & 0b00000100);
-        bool r3 = cast(bool)(result & 0b00000100);
-        bool rd7 = cast(bool)(rd & 0b10000000);
-        bool rr7 = cast(bool)(rr & 0b10000000);
-        bool r7 = cast(bool)(result & 0b10000000);
-        state.sreg.H = rd3 && rr3 || rr3 && !r3 || !r3 && rd3;
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.V = rd7 && rr7 && !r7 || !rd7 && !rr7 && r7;
-        state.sreg.N = r7;
-        state.sreg.Z = result == 0;
-        state.sreg.C = rd7 && rr7 || rr7 && !r7 || !r7 && rd7;
+        state.setSregArithPos(rd, rr, result);
         return 1;
     }
 }
@@ -175,19 +198,7 @@ class Cpc : Instruction!AtMega2560State {
         auto rd = state.valueRegisters[regd].value;
         auto rr = state.valueRegisters[regr].value;
         ubyte result = cast(ubyte)(rd - rr - state.sreg.C); //todo: unittesten
-        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
-        bool rr3 = cast(bool)(rr & 0b00000100);
-        bool r3 = cast(bool)(result & 0b00000100);
-        bool rd7 = cast(bool)(rd & 0b10000000);
-        bool rr7 = cast(bool)(rr & 0b10000000);
-        bool r7 = cast(bool)(result & 0b10000000);
-        state.sreg.H = !rd3 && rr3 || rr3 && r3 || r3 && !rd3;
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.V = rd7 && !rr7 && !r7 || !rd7 && rr7 && r7;
-        state.sreg.N = r7;
-        if(result != 0)
-            state.sreg.Z = false;
-        state.sreg.C = !rd7 && rr7 || rr7 && r7 || r7 && !rd7;
+        state.setSregArithNeg(rd, rr, result, true);
         return 1;
     }
 }
@@ -195,29 +206,18 @@ class Cpc : Instruction!AtMega2560State {
 /* Compare with immediate */
 class Cpi : Instruction!AtMega2560State {
     uint regd;
-    uint k;
+    ubyte k;
 
     this(in InstructionToken token) {
         super(token);
         regd = parseNumericRegister(token.parameters[0]);
-        k = parseHex(token.parameters[1]);
+        k = cast(ubyte)parseHex(token.parameters[1]);
     }
 
     override cycleCount callback(AtMega2560State state) const {
         auto rd = state.valueRegisters[regd].value;
         ubyte result = cast(ubyte)(rd - k); //todo: unittesten
-        bool rd3 = cast(bool)(rd & 0b00000100); //todo: lelijk. 'bitslicen' en in de registerdefinitie stoppen
-        bool k3 = cast(bool)(k & 0b00000100);
-        bool r3 = cast(bool)(result & 0b00000100);
-        bool rd7 = cast(bool)(rd & 0b10000000);
-        bool k7 = cast(bool)(k & 0b10000000);
-        bool r7 = cast(bool)(result & 0b10000000);
-        state.sreg.H = !rd3 && k3 || k3 && r3 || r3 && !rd3;
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.V = rd7 && !k7 && !r7 || !rd7 && k7 && r7;
-        state.sreg.N = r7;
-        state.sreg.Z = result == 0;
-        state.sreg.C = !rd7 && k7 || k7 && r7 || r7 && !rd7;
+        state.setSregArithNeg(rd, k, result);
         return 1;
     }
 }
@@ -238,11 +238,7 @@ class Eor : Instruction!AtMega2560State {
         ubyte rr = state.valueRegisters[regr].value;
         ubyte result = rr ^ rd;
         state.valueRegisters[regd].value = result;
-        bool r7 = cast(bool)(result & 0b10000000);
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.V = false;
-        state.sreg.N = r7;
-        state.sreg.Z = result == 0;
+        state.setSregLogical(result);
         return 1;
     }
 }
