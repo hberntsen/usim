@@ -139,7 +139,7 @@ class AtMega2560State : MachineState {
       sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
     }
 
-    private bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
+    private static bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
       return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b1000000), cast(bool)(b & 0b00001000), cast(bool)(b & 0b1000000), cast(bool)(c & 0b00001000), cast(bool)(c & 0b1000000)];
     }
 }
