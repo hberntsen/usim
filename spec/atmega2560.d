@@ -232,14 +232,15 @@ class Call : Instruction!AtMega2560State {
         return 5;
     }
 }
+///Tests both call and ret
 unittest {
     auto state = new AtMega2560State();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop0",[]));
-    //call nop2
+    //call jumps to the ret instruction 
     auto call = new Call(new InstructionToken(0,2,[],"call",["0x8"]));
     auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
-    auto nop2 = new Nop(new InstructionToken(0,8,[],"nop2",[]));
-    state.setInstructions([nop0,call,nop1,nop2]);
+    auto ret = new Ret(new InstructionToken(0,8,[],"ret",[]));
+    state.setInstructions([nop0,call,nop1,ret]);
     ushort spInit = state.stackPointer.value;
     nop0.callback(state);
     call.callback(state);
@@ -250,6 +251,11 @@ unittest {
     //instruction takes 4 bytes 
     assert(state.data[spInit-2] == 3);
     assert(state.programCounter == 4);
+
+    //Done testing call, now test ret
+    ret.callback(state);
+    assert(state.programCounter == 3);
+    assert(state.stackPointer.value == spInit);
 }
 
 // Global interrupt disable
@@ -441,6 +447,28 @@ class Nop : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
         state.relativeJump(1);
         return 1;
+    }
+}
+
+class Ret : Instruction!AtMega2560State {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        //Since we use uint for the stackpointer and the hardware's program
+        //counter is only 3 bytes we need to copy the bytes first to a new
+        //array and then convert it
+        ubyte[] stackPointerBytes = new ubyte[uint.sizeof];
+        //Stack pointer points to next position to write, so +1 and +5 since we
+        //want 3 bytes
+        stackPointerBytes[0 .. 4] = state.data[state.stackPointer +1 ..
+            state.stackPointer+5];
+        uint newPc = stackPointerBytes.peek!(uint,Endian.littleEndian);
+
+        state.stackPointer.value = cast(short)(state.stackPointer.value + 3);
+        state.programCounter = newPc;
+        return 5;
     }
 }
 
