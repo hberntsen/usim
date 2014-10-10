@@ -439,6 +439,7 @@ class Nop : Instruction!AtMega2560State {
     this(in InstructionToken token) { super(token);}
 
     override cycleCount callback(AtMega2560State state) const {
+        state.relativeJump(1);
         return 1;
     }
 }
