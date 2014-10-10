@@ -211,6 +211,47 @@ unittest {
     assert(state.currentInstruction.address == 2);
 }
 
+/** Long Call to a Subroutine */
+class Call : Instruction!AtMega2560State {
+    const ulong address;
+
+    this(in InstructionToken token) {
+        super(token);
+        address = parseHex(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte[] pcBytes = new ubyte[size_t.sizeof]; 
+        //Convert PC+2 to bytes and store it on the stack
+        pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter+2,0);
+        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
+            pcBytes[0 .. 3];
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
+        state.jump(address);
+
+        return 5;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    auto nop0 = new Nop(new InstructionToken(0,0,[],"nop0",[]));
+    //call nop2
+    auto call = new Call(new InstructionToken(0,2,[],"call",["0x8"]));
+    auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
+    auto nop2 = new Nop(new InstructionToken(0,8,[],"nop2",[]));
+    state.setInstructions([nop0,call,nop1,nop2]);
+    ushort spInit = state.stackPointer.value;
+    nop0.callback(state);
+    call.callback(state);
+
+    assert(state.stackPointer.value == spInit - 3);
+    //Program counter that is stored should be 3, the program counter is 1
+    //before call is executed, then raised to a value of 3 since the call
+    //instruction takes 4 bytes 
+    assert(state.data[spInit-2] == 3);
+    assert(state.programCounter == 4);
+}
+
 // Global interrupt disable
 class Cli : Instruction!AtMega2560State {
     this(in InstructionToken token) { super(token); }
