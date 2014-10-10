@@ -74,17 +74,24 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
   return new InstructionToken(lineNumber, address, rawBytes, instruction, parameters);
 }
 
-void parse(File file/*, in MachineInstance machineInstance*/) {
+InstructionToken[] parse(File file) {
+  InstructionToken[] instructions;
+  instructions.length = 100;
   int lineNumber = 0;
+  int i = 0;
   string line;
   while ((line = file.readln()) !is null) {
     InstructionToken token = parseInstruction(lineNumber, line);
     if (token !is null) {
-      //machineInstance.addInstruction(token);
-      writeln(token);
+      if (i == instructions.length) {
+        instructions.length *= 2;
+      }
+      instructions[i++] = token;
     }
     lineNumber++;
   }
+  instructions.length = i;
+  return instructions;
 }
 
 unittest {
@@ -95,13 +102,8 @@ unittest {
 }
 
 unittest {
-  string[] args = ["main.d", "tests/test_write/test_write_atmega2560.dump"];
-  if (args.length < 2) {
-    writeln("usage: parser FILENAME");
-    return;
-  }
-
-  File file = File(args[1], "r");
-  parse(file);
+  File file = File("tests/test_write/test_write_atmega2560.dump", "r");
+  InstructionToken[] instructions = parse(file);
   file.close();
+  writeln(instructions);
 }
