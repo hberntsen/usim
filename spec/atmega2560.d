@@ -173,12 +173,42 @@ class Add : Instruction!AtMega2560State {
     }
 }
 
-class Nop : Instruction!AtMega2560State {
-    this(in InstructionToken token) { super(token);}
+/** Branch If Not Equal */
+class Brne : Instruction!AtMega2560State {
+    const size_t destAddress;
+
+    this(in InstructionToken token) {
+        super(token);
+        auto relativePc = parseInt(token.parameters[0]);
+        assert(relativePc <= 63 && relativePc >= -64);
+        destAddress = address + 2 + relativePc;
+    }
 
     override cycleCount callback(AtMega2560State state) const {
-        return 1;
+        if(state.sreg.Z) {
+            state.relativeJump(1);
+            return 1;
+        } else {
+            state.jump(destAddress);
+            return 2;
+        }
     }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.sreg.Z = false;
+    //Jump to nop2 if Z is cleared (false)
+    auto brne = new Brne(new InstructionToken(0,0,[],"brne",[".+2"]));
+    auto nop = new Nop(new InstructionToken(0,2,[],"nop",[]));
+    auto nop2 = new Nop(new InstructionToken(0,4,[],"nop",[]));
+    state.setInstructions([brne,nop,nop2]);
+    brne.callback(state);
+    assert(state.currentInstruction.address == 4);
+
+    state.sreg.Z = true;
+    state.programCounter = 0;
+    brne.callback(state);
+    assert(state.currentInstruction.address == 2);
 }
 
 // Global interrupt disable
@@ -346,6 +376,14 @@ class Sts : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
       state.memories["data"][address] = state.valueRegisters[regr].value;
       return 2;
+    }
+}
+
+class Nop : Instruction!AtMega2560State {
+    this(in InstructionToken token) { super(token);}
+
+    override cycleCount callback(AtMega2560State state) const {
+        return 1;
     }
 }
 
