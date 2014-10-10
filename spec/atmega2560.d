@@ -322,6 +322,21 @@ class Eor : Instruction!AtMega2560State {
     }
 }
 
+class Jmp : Instruction!AtMega2560State {
+    const ulong address;
+
+    this(in InstructionToken token) {
+        super(token);
+        address = parseHex(token.parameters[0]);
+        assert(address < 4*1024*1024);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.jump(address);
+        return 3;
+    }
+}
+
 /* Load immediate */
 class Ldi : Instruction!AtMega2560State {
     uint regd;
