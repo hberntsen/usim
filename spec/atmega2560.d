@@ -501,6 +501,69 @@ unittest {
     assert(state.currentInstruction.address == 2);
 }
 
+/** SBRS - Skip if Bit in Register is Set */
+class Sbrs : Instruction!AtMega2560State {
+    uint register;
+    int bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        register = parseNumericRegister(token.parameters[0]);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ulong regValue = state.valueRegisters[register].value;
+        if(bt(&regValue,bit)) {
+            state.relativeJump(2);
+            //Calculate difference between addresses of next 2 instructions
+            //+2 since this instruction is 2 bytes
+            ulong skipSize = state.currentInstruction.address - (address + 2);
+
+            if(skipSize == 2) {
+                return 2;
+            } else {
+                assert(skipSize == 4);
+                return 3;
+            }
+        } else {
+            state.relativeJump(1);
+            return 1;
+        }
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    state.valueRegisters[0].value = 0;
+    auto sbrs = new Sbrs(new InstructionToken(0,0,[],"sbrs",["r0","0"]));
+    auto nop1 = new Nop(new InstructionToken(0,2,[],"nop1",[]));
+    auto nop2 = new Nop(new InstructionToken(0,4,[],"nop2",[]));
+    state.setInstructions([sbrs,nop1,nop2]);
+
+    //Should not have skipped instruction
+    assert(sbrs.callback(state) == 1);
+    assert(state.programCounter == 1);
+
+    state.jump(0);
+    state.valueRegisters[0] = 1;
+    //Should skip instruction
+    assert(sbrs.callback(state) == 2);
+    assert(state.programCounter == 2);
+
+    //Test skipping 4byte instruction with bit 7
+    sbrs = new Sbrs(new InstructionToken(0,0,[],"sbrs",["r0","7"]));
+    auto call = new Call(new InstructionToken(0,2,[],"call",["0x0"]));
+    nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
+    state.setInstructions([sbrs,call,nop1]);
+
+    //Should skip instruction
+    state.valueRegisters[0] = 0xf0;
+    assert(sbrs.callback(state) == 3);
+    assert(state.programCounter == 3);
+}
+
 //TODO: fix this test for our add instruction
 /*
 unittest {
