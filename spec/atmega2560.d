@@ -307,6 +307,23 @@ class Cpi : Instruction!AtMega2560State {
     }
 }
 
+/** Compare Skip if Equal */
+class Cpse : SkipInstruction {
+    uint rd;
+    uint rr;
+
+    this(in InstructionToken token) {
+        super(token);
+        rd = parseNumericRegister(token.parameters[0]);
+        rr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override bool shouldSkip(AtMega2560State state) const {
+        return state.valueRegisters[rd].value ==
+            state.valueRegisters[rr].value;
+    }
+}
+
 /* Exclusive OR */
 class Eor : Instruction!AtMega2560State {
     uint regd;
@@ -501,21 +518,13 @@ unittest {
     assert(state.currentInstruction.address == 2);
 }
 
-/** SBRS - Skip if Bit in Register is Set */
-class Sbrs : Instruction!AtMega2560State {
-    uint register;
-    int bit;
+abstract class SkipInstruction :Instruction!AtMega2560State {
+    this(in InstructionToken token) {super(token);}
 
-    this(in InstructionToken token) {
-        super(token);
-        register = parseNumericRegister(token.parameters[0]);
-        bit = parseInt(token.parameters[1]);
-        assert(0 <= bit && bit <= 7);
-    }
+    bool shouldSkip(AtMega2560State state) const;
 
     override cycleCount callback(AtMega2560State state) const {
-        ulong regValue = state.valueRegisters[register].value;
-        if(bt(&regValue,bit)) {
+        if(shouldSkip(state)) {
             state.relativeJump(2);
             //Calculate difference between addresses of next 2 instructions
             //+2 since this instruction is 2 bytes
@@ -531,6 +540,24 @@ class Sbrs : Instruction!AtMega2560State {
             state.relativeJump(1);
             return 1;
         }
+    }
+}
+
+/** SBRS - Skip if Bit in Register is Set */
+class Sbrs : SkipInstruction {
+    uint register;
+    int bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        register = parseNumericRegister(token.parameters[0]);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override bool shouldSkip(AtMega2560State state) const {
+        ulong regValue = state.valueRegisters[register].value;
+        return bt(&regValue,bit) > 0;
     }
 }
 
