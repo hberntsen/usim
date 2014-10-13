@@ -21,6 +21,7 @@ abstract class Instruction(T) {
     this(in InstructionToken token) {
         this.address = token.address;
         this.name = token.name;
+        this.token = token;
     }
 
     protected static uint parseNumericRegister(string param) {
@@ -36,13 +37,17 @@ abstract class Instruction(T) {
     }
 
     protected static uint parseHex(string param) {
-        assert(param[0..2] == "0x");
-        string numericPart = param[2..$];
-        return parse!uint(numericPart, 16); // parse!int(param[2..$],16);
+        //enforce(param[0..2] == "0x");
+        if (param.length > 2 && param[0..2] == "0x") {
+            string numericPart = param[2..$];
+            return parse!uint(numericPart, 16); // parse!int(param[2..$],16);
+        }
+        return to!uint(param);
     }
 
     string name; //e.g. ADDI
     size_t address; //absolute address of instruction in memory
+    const InstructionToken token;
 }
 
 class InstructionsWrapper(T) {
@@ -113,29 +118,36 @@ class InstructionsWrapper(T) {
      instruction size heuristic to find the correct position in the array
      and then search until we find it.
       */
-    Instruction!T jump(size_t requestedAddress) {
+    void jump(size_t requestedAddress) {
         assert(instructions.length > 0);
-        size_t guess = (requestedAddress-addressOffset) / averageSize;
-        if(guess >= instructions.length) { guess = instructions.length - 1;}
-        Direction d = Direction.UNSET;
-        Direction p = Direction.UNSET;
-        while(instructions[guess].address != requestedAddress) {
-            p = d;
-            if(instructions[guess].address > requestedAddress) {
-                enforce(guess > 0,"Instruction not found(underflow in search)");
-                guess--;
-                d = Direction.DOWN;
-            } else if(instructions[guess].address < requestedAddress) {
-                enforce(guess < instructions.length-1,"Instruction not
-                        found(overflow in search)");
-                guess++;
-                d = Direction.UP;
+        size_t guess  = 0;
+        foreach (i, instr; instructions) {
+            if (instr.address == requestedAddress) {
+                guess = i;
+                break;
             }
-            enforce(d == p || p == Direction.UNSET,
-                    "No instruction at specified address");
         }
+        //size_t guess = (requestedAddress-addressOffset) / averageSize;
+        //if(guess >= instructions.length) { guess = instructions.length - 1;}
+        //Direction d = Direction.UNSET;
+        //Direction p = Direction.UNSET;
+        //while(instructions[guess].address != requestedAddress) {
+            //p = d;
+            //if(instructions[guess].address > requestedAddress) {
+                //enforce(guess > 0,"Instruction not found(underflow in search)");
+                //guess--;
+                //d = Direction.DOWN;
+            //} else if(instructions[guess].address < requestedAddress) {
+                //enforce(guess < instructions.length-1,"Instruction not
+                        //found(overflow in search)");
+                //guess++;
+                //d = Direction.UP;
+            //}
+            //enforce(d == p || p == Direction.UNSET,
+                    //format("No instruction at specified address: %x",
+                        //requestedAddress));
+        //}
         nextIndex = guess;
-        return fetch();
     }
 }
 

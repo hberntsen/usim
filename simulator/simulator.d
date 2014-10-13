@@ -4,6 +4,8 @@ import std.stdio;
 
 import machine.state;
 import spec.base;
+import spec.atmega2560;
+import parser.parser;
 
 struct SimulatorState {
     ulong cycles;
@@ -19,6 +21,39 @@ class Simulator(T) {
         this.simulatorState = SimulatorState(0);
     }
 
+    void initialiseInstructions(InstructionToken[] tokens) {
+        Instruction!T[] instructions = [];
+        foreach (i, tok; tokens) {
+            instructions ~= createInstruction!T(tok);
+        }
+        machineState.setInstructions(instructions);
+    }
+
+    Instruction!T createInstruction(AtMega2560State)(InstructionToken tok) {
+        //writeln(tok);
+        switch (tok.name) {
+            case "brne": return new Brne(tok);
+            case "call": return new Call(tok);
+            case "cli": return new Cli(tok);
+            case "cpc": return new Cpc(tok);
+            case "cpi": return new Cpi(tok);
+            case "cpse": return new Cpse(tok);
+            case "eor": return new Eor(tok);
+            case "ldi": return new Ldi(tok);
+            case "lds": return new Lds(tok);
+            case "out": return new Out(tok);
+            case "st": return new St(tok);
+            case "sts": return new Sts(tok);
+            case "nop": return new Nop(tok);
+            case "ret": return new Ret(tok);
+            case "rjmp": return new Rjmp(tok);
+            case "jmp": return new Jmp(tok);
+            case "sbrs": return new Sbrs(tok);
+            case "write_byte": return new WriteByte(tok);
+            default: throw new Exception("Unknown instruction: " ~ tok.name);
+        }
+    }
+
     public SimulatorState run() {
         try {
             while (true) {
@@ -31,10 +66,19 @@ class Simulator(T) {
 
     ulong step() {
         auto instr = this.machineState.fetchInstruction();
-        writefln("Applying instruction '%s'", instr.name);
-        write("\tApplying callback");
+        //writefln("Applying instruction '%s'", instr.name);
+        //writefln("\tToken: %s", instr.token);
+        //writefln("\tRefrefs (before): %s", machineState.refregs);
+        //writefln("\tRegisters (before): %s", machineState.registers);
+        //writefln("\tFlags (before): %s", machineState.sreg);
+        //writefln("\tSP (before): %s", machineState.stackPointer);
+        //write("\tApplying callback");
         const ulong cycles = instr.callback(machineState);
-        writefln(" - DONE (%d cycles)", cycles);
+        //writefln(" - DONE (%d cycles)", cycles);
+        //writefln("\tSP (after): %s", machineState.stackPointer);
+        //writefln("\tRefrefs (after): %s", machineState.refregs);
+        //writefln("\tRegisters (after): %s", machineState.registers);
+        //writefln("\tFlags (after): %s", machineState.sreg);
         this.simulatorState.cycles += cycles;
         return cycles;
     }

@@ -1,8 +1,9 @@
 module spec.atmega2560; //we might want to make this a more generic AVR later on
 
-import std.stdio : writeln;
+import std.stdio;
 import std.conv;
 import std.system;
+import std.string;
 
 import spec.base;
 import machine.state;
@@ -22,6 +23,20 @@ class Sreg : ReferenceRegister!ubyte {
         }
         return state;
     }
+
+    override string toString() {
+        return format("%s", [
+            "I": I(),
+            "T": T(),
+            "H": H(),
+            "S": S(),
+            "V": V(),
+            "N": N(),
+            "Z": Z(),
+            "C": C(),
+        ]);
+    }
+
     @property bool I() const { return getBit(7); }
     @property bool I(bool newValue) { return setBit(7,newValue);}
     @property bool T() const { return getBit(6); }
@@ -190,7 +205,6 @@ class Brne : Instruction!AtMega2560State {
 
     override cycleCount callback(AtMega2560State state) const {
         if(state.sreg.Z) {
-            state.relativeJump(1);
             return 1;
         } else {
             state.jump(destAddress);
@@ -207,12 +221,13 @@ unittest {
     auto nop2 = new Nop(new InstructionToken(0,4,[],"nop",[]));
     state.setInstructions([brne,nop,nop2]);
     brne.callback(state);
-    assert(state.currentInstruction.address == 4);
+    assert(state.currentInstruction().address == 4);
 
     state.sreg.Z = true;
     state.programCounter = 0;
+    writeln(state.sreg);
     brne.callback(state);
-    assert(state.currentInstruction.address == 2);
+    assert(state.fetchInstruction().address == 2);
 }
 
 /** Long Call to a Subroutine */
@@ -231,6 +246,7 @@ class Call : Instruction!AtMega2560State {
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
             pcBytes[0 .. 3];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
+
         state.jump(address);
 
         return 5;
@@ -253,8 +269,8 @@ unittest {
     //Program counter that is stored should be 3, the program counter is 1
     //before call is executed, then raised to a value of 3 since the call
     //instruction takes 4 bytes 
-    assert(state.data[spInit-2] == 3);
     assert(state.programCounter == 4);
+    assert(state.data[spInit-2] == 3);
 
     //Done testing call, now test ret
     ret.callback(state);
@@ -418,11 +434,11 @@ class St : Instruction!AtMega2560State {
         preinc = token.parameters[0][0] == '+';
         predec = token.parameters[0][0] == '-';
         if(preinc || predec)
-          refreg = token.parameters[0][1..1].dup;
+          refreg = token.parameters[0][1..$].dup;
         else {
           postinc = token.parameters[0][1] == '+';
           postdec = token.parameters[0][1] == '-';
-          refreg = token.parameters[0][0..0].dup;
+          refreg = token.parameters[0][0..1].dup;
         }
       }
       else
@@ -436,7 +452,9 @@ class St : Instruction!AtMega2560State {
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
       if(predec)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+
       state.memories["data"][state.refregs[refreg]] = state.valueRegisters[regr].value;
+
       if(postinc)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
       if(postdec)
@@ -562,6 +580,19 @@ class Sbrs : SkipInstruction {
     override bool shouldSkip(AtMega2560State state) const {
         ulong regValue = state.valueRegisters[register].value;
         return bt(&regValue,bit) > 0;
+    }
+}
+
+class WriteByte : Instruction!AtMega2560State {
+    this(in InstructionToken tok) {
+        super(tok);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        auto value = state.valueRegisters[24].bytes;
+        write(cast(string)(value));
+        stdout.flush();
+        return 0;
     }
 }
 

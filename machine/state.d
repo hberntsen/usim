@@ -50,7 +50,7 @@ class ReferenceRegister(T) : Register {
     size_t offset;
 
     override string toString() {
-        return format("%s", bytes);
+        return format("%(%x %)", bytes);
     }
 
     override @property ubyte[] bytes() {
