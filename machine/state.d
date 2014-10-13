@@ -57,8 +57,8 @@ class ReferenceRegister(T) : Register {
         return raw[offset .. offset + T.sizeof];
     };
 
-    @property ubyte[] bytes() const {
-        return raw[offset .. offset + T.sizeof].dup;
+    @property const(ubyte[]) bytes() const {
+        return raw[offset .. offset + T.sizeof];
     };
 
     override @property ubyte[] bytes(ubyte[] newValue) {
@@ -128,8 +128,8 @@ class Memory {
         data[i - offset .. j -offset] = value;
     }
 
-    ubyte[] opSlice(size_t i1, size_t i2) const {
-        return data[i1 - offset .. i2 - offset].dup;
+    const(ubyte[]) opSlice(size_t i1, size_t i2) const {
+        return data[i1 - offset .. i2 - offset];
     }
 
     ubyte[] opSlice(size_t i1, size_t i2) {
