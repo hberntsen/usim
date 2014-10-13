@@ -105,6 +105,10 @@ class AtMega2560State : MachineState {
         return instructions.current;
     }
 
+    Instruction!AtMega2560State fetchInstruction() {
+        return instructions.fetch();
+    }
+
     void setInstructions(Instruction!AtMega2560State[] instructions) {
         this.instructions = new InstructionsWrapper!AtMega2560State(instructions);
     }

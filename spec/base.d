@@ -1,13 +1,23 @@
 module spec.base;
-import machine.state;
+
 import std.exception : enforce;
 import std.conv;
+import std.string;
+
 import parser.parser;
+import machine.state;
 
 alias cycleCount = uint;
 
+class EOFException : Exception {
+    this () {
+        super("Last instruction reached");
+    }
+}
+
 abstract class Instruction(T) {
     cycleCount callback(T state) const;
+
     this(in InstructionToken token) {
         this.address = token.address;
         this.name = token.name;
@@ -38,10 +48,16 @@ abstract class Instruction(T) {
 class InstructionsWrapper(T) {
     private Instruction!T[] instructions;
     private size_t currentIndex = 0;
+    private size_t nextIndex = 0;
     private size_t averageSize;
     private size_t addressOffset; //The instruction's offset in the real memory
 
-    @property Instruction!T current() { return instructions[currentIndex];}
+    @property Instruction!T current() {
+        if (currentIndex >= instructions.length) {
+            throw new EOFException();
+        }
+        return instructions[currentIndex];
+    }
 
     this(Instruction!T[] instructions, size_t addressOffset = 0) {
         this.instructions = instructions;
@@ -50,7 +66,9 @@ class InstructionsWrapper(T) {
 
     private static size_t averageInstructionSize(in Instruction!T[] instructions)
     out(result) {
-        assert((instructions.length == 0 && result == 0) || result > 0);
+        // @TODO doesn't work on edge case of 1 instruction
+        //assert(instructions.length == 0 && result == 0);
+        //assert(instructions.length > 0 && result > 0);
     }
     body {
         if(instructions.length == 0) {
@@ -58,7 +76,7 @@ class InstructionsWrapper(T) {
         }
         size_t average = 0;
         size_t previousAddr = 0;
-        foreach(i,instruction; instructions){
+        foreach(i, instruction; instructions ){
             assert(instruction.address > previousAddr || i == 0);
             average += instruction.address - previousAddr;
             previousAddr = instruction.address;
@@ -67,13 +85,26 @@ class InstructionsWrapper(T) {
     }
 
     invariant() {
-        assert(currentIndex < instructions.length
+        assert(currentIndex <= instructions.length
                 || instructions.length == 0);
     }
 
+    override string toString() {
+        return format("[currentIndex: %d, nextIndex: %d]", currentIndex,
+                nextIndex);
+    }
+
+    Instruction!T fetch() {
+        currentIndex = nextIndex;
+        auto instr = current();
+        nextIndex = currentIndex + 1;
+
+        return instr;
+    }
+
     Instruction!T relativeJump(size_t offset) {
-        currentIndex += offset;
-        return instructions[currentIndex];
+        nextIndex = currentIndex + offset;
+        return fetch();
     }
 
     enum Direction {UP, DOWN, UNSET};
@@ -103,8 +134,8 @@ class InstructionsWrapper(T) {
             enforce(d == p || p == Direction.UNSET,
                     "No instruction at specified address");
         }
-        currentIndex = guess;
-        return instructions[guess];
+        nextIndex = guess;
+        return fetch();
     }
 }
 

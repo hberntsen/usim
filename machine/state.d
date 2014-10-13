@@ -4,6 +4,9 @@ import std.stdio : writeln;
 import std.conv;
 import std.bitmanip;
 import std.system;
+import std.string;
+
+import spec.base;
 
 abstract class Register
 {
@@ -45,6 +48,10 @@ class SimpleRegister(T) : Register
 class ReferenceRegister(T) : Register {
     Memory raw;
     size_t offset;
+
+    override string toString() {
+        return format("%s", bytes);
+    }
 
     override @property ubyte[] bytes() {
         return raw[offset .. offset + T.sizeof];
@@ -102,6 +109,10 @@ class Memory {
     this(size_t size, size_t offset =0) {
         this.offset = offset;
         this.data = new ubyte[size];
+    }
+
+    override string toString() {
+        return format("%s", data);
     }
 
     ubyte opIndex(size_t i) {
