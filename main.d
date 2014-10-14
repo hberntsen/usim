@@ -1,13 +1,17 @@
 #! /usr/bin/env rdmd
 import std.stdio;
+import std.getopt;
 
 import parser.parser;
 import spec.atmega2560;
 import spec.base;
 import simulator.simulator;
 
-void main() {
-    File file = File("tests/test_write/test_write_atmega2560.dump3", "r");
+void main(string[] args) {
+    string filename;
+    getopt(args, "file", &filename);
+
+    File file = File(filename, "r");
     InstructionToken[] instructions = parse(file);
     file.close();
 
