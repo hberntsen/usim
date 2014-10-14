@@ -13,7 +13,7 @@ clt
 com
 cp
 dec
-eica
+eicall
 elpm
 in
 inc
@@ -21,6 +21,7 @@ ld
 ldd
 lpm
 lsr
+
 mov
 movw
 mul
