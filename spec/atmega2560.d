@@ -10,6 +10,10 @@ import std.bitmanip;
 import core.bitop;
 import parser.parser : InstructionToken;
 
+extern(C) MachineState getNewMachineState() {
+    return new AtMega2560State();
+}
+
 class Sreg : ReferenceRegister!ubyte {
     private bool getBit(uint bitNum) const {
         return cast(bool)(bytes()[0] & (1 << bitNum));

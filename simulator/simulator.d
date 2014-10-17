@@ -35,9 +35,3 @@ class Simulator {
     }
 }
 
-unittest {
-    import spec.atmega2560;
-
-    auto state = new AtMega2560State;
-    auto sim = new Simulater!AtMega2560State(state);
-}
