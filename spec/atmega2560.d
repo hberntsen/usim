@@ -232,7 +232,7 @@ unittest {
 
 /** Long Call to a Subroutine */
 class Call : Instruction!AtMega2560State {
-    const ulong address;
+    const size_t address;
 
     this(in InstructionToken token) {
         super(token);
@@ -366,7 +366,7 @@ class Eor : Instruction!AtMega2560State {
 }
 
 class Jmp : Instruction!AtMega2560State {
-    const ulong address;
+    const size_t address;
 
     this(in InstructionToken token) {
         super(token);
@@ -578,7 +578,7 @@ class Sbrs : SkipInstruction {
     }
 
     override bool shouldSkip(AtMega2560State state) const {
-        ulong regValue = state.valueRegisters[register].value;
+        size_t regValue = state.valueRegisters[register].value;
         return bt(&regValue,bit) > 0;
     }
 }
