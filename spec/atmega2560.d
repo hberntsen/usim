@@ -137,37 +137,39 @@ class AtMega2560State : MachineState {
     }
 
     void setSregLogical(ubyte result) {
-      sreg.V = false;
-      sreg.N = cast(bool)(result & 0b10000000);
-      sreg.S = sreg.V ^ sreg.N;
-      sreg.Z = result == 0;
+        sreg.V = false;
+        sreg.N = cast(bool)(result & 0b10000000);
+        sreg.S = sreg.V ^ sreg.N;
+        sreg.Z = result == 0;
     }
 
     void setSregArithPos(ubyte a, ubyte b, ubyte c) {
-      bool[] bits = getRelevantBits(a, b, c);
-      sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
-      sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
-      sreg.N = bits[5];
-      sreg.S = sreg.V ^ sreg.N;
-      sreg.Z = c == 0;
-      sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
+        bool[] bits = getRelevantBits(a, b, c);
+        sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
+        sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
+        sreg.N = bits[5];
+        sreg.S = sreg.V ^ sreg.N;
+        sreg.Z = c == 0;
+        sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
     }
 
     void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
-      bool[] bits = getRelevantBits(a, b, c);
-      sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
-      sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
-      sreg.N = bits[5];
-      sreg.S = sreg.V ^ sreg.N;
-      if(preserveZ && c != 0)
-        sreg.Z = false;
-      else if(!preserveZ)
-        sreg.Z = c == 0;
-      sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+        bool[] bits = getRelevantBits(a, b, c);
+        sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
+        sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
+        sreg.N = bits[5];
+        sreg.S = sreg.V ^ sreg.N;
+        if(preserveZ && c != 0)
+            sreg.Z = false;
+        else if(!preserveZ)
+            sreg.Z = c == 0;
+        sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
     }
 
     private static bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
-      return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b1000000), cast(bool)(b & 0b00001000), cast(bool)(b & 0b1000000), cast(bool)(c & 0b00001000), cast(bool)(c & 0b1000000)];
+        return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b10000000),
+               cast(bool)(b & 0b00001000), cast(bool)(b & 0b10000000),
+               cast(bool)(c & 0b00001000), cast(bool)(c & 0b10000000)];
     }
 }
 
@@ -188,8 +190,55 @@ class Add : Instruction!AtMega2560State {
         ubyte result = cast(ubyte)(rr + rd);
         state.valueRegisters[dest].value = result;
         state.setSregArithPos(rd, rr, result);
+
         return 1;
     }
+}
+
+class Adc : Instruction!AtMega2560State {
+    uint dest;
+    uint regToAdd;
+
+    this(in InstructionToken token) {
+        super(token);
+        dest = parseNumericRegister(token.parameters[0]);
+        regToAdd = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[dest].value;
+        ubyte rr = state.valueRegisters[regToAdd].value;
+        ubyte result = cast(ubyte)(rr + rd + state.sreg.C);
+        state.valueRegisters[dest].value = result;
+        state.setSregArithPos(rd, rr, result);
+
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto adc = new Adc(new InstructionToken(0,0,[],"adc",["r2", "r0"]));
+    auto adc2 = new Adc(new InstructionToken(0,0,[],"adc",["r3", "r1"]));
+
+    state.sreg.C = false;
+    state.setInstructions([adc]);
+
+    // low bytes
+    state.valueRegisters[0] = 0x81;
+    state.valueRegisters[2] = 0x82;
+
+    // high bytes
+    state.valueRegisters[1] = 0x00;
+    state.valueRegisters[3] = 0x10;
+
+    adc.callback(state);
+    assert(state.valueRegisters[2].value == 0x03);
+    assert(state.sreg.C == true);
+
+    adc2.callback(state);
+    assert(state.sreg.C == false);
+    assert(state.valueRegisters[3].value = 0x11);
 }
 
 /** Branch If Not Equal */
@@ -225,7 +274,6 @@ unittest {
 
     state.sreg.Z = true;
     state.programCounter = 0;
-    writeln(state.sreg);
     brne.callback(state);
     //assert(state.fetchInstruction().address == 2);
 }

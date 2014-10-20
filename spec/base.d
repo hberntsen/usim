@@ -120,13 +120,14 @@ class InstructionsWrapper(T) {
       */
     void jump(size_t requestedAddress) {
         assert(instructions.length > 0);
-        size_t guess  = 0;
+        size_t guess  = -1;
         foreach (i, instr; instructions) {
             if (instr.address == requestedAddress) {
                 guess = i;
                 break;
             }
         }
+        enforce(guess != -1, "No instruction found");
         //size_t guess = (requestedAddress-addressOffset) / averageSize;
         //if(guess >= instructions.length) { guess = instructions.length - 1;}
         //Direction d = Direction.UNSET;
@@ -174,7 +175,8 @@ unittest {
     assert(wrapper.relativeJump(1).address == 2);
     assert(wrapper.relativeJump(1).address == 4);
     assert(wrapper.relativeJump(-2).address == 0);
-    assert(wrapper.jump(10).name == "fourth");
+    wrapper.jump(10);
+    assert(wrapper.fetch().name == "fourth");
     bool exception = false;
     try {
         wrapper.jump(9);
