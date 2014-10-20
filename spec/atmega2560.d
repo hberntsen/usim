@@ -294,6 +294,45 @@ unittest {
     assert(state.sreg.C == false);
 }
 
+class And : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte rr = state.valueRegisters[regr].value;
+        ubyte result = rr & rd;
+        state.valueRegisters[regd].value = result;
+        state.setSregLogical(result);
+        return 1;
+    }
+}
+
+class Andi : Instruction!AtMega2560State {
+    uint regd;
+    uint k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = rd & cast(ubyte)(k);
+        state.valueRegisters[regd].value = result;
+        state.setSregLogical(result);
+        return 1;
+    }
+}
+
 /** Branch If Not Equal */
 class Brne : Instruction!AtMega2560State {
     const size_t destAddress;
