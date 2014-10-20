@@ -241,6 +241,59 @@ unittest {
     assert(state.valueRegisters[3].value = 0x11);
 }
 
+class Adiw : Instruction!AtMega2560State {
+    const uint dest;
+    const uint k;
+
+    this(in InstructionToken token) {
+        super(token);
+        dest = parseNumericRegister(token.parameters[0]);
+        k = parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        uint rdlow = state.valueRegisters[dest].value;
+        uint rdhigh = cast(uint)(state.valueRegisters[dest + 1].value) << 7;
+
+        uint rd = rdlow + rdhigh;
+        uint result = rd + k;
+
+        state.valueRegisters[dest].value = cast(ubyte)(result & 0x00ff);
+        state.valueRegisters[dest + 1].value = cast(ubyte)((result >> 8) & 0x00ff);
+
+        bool rdh0 = cast(bool)(rdhigh & 0x01);
+        bool rdh7 = cast(bool)(rdhigh & 0x80);
+        bool rdl0 = cast(bool)(rdlow & 0x01);
+        bool rdl7 = cast(bool)(rdlow & 0x80);
+        bool r0 = cast(bool)(result & 0x0001);
+        bool r7 = cast(bool)(result & 0x0080);
+        bool r15 = cast(bool)(result & 0x8000);
+
+        state.sreg.N = r15;
+        state.sreg.V = !rdh7 && r15;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.C = r15 && rdh7;
+        state.sreg.Z = result == 0;
+
+        return 2;
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto adiw = new Adiw(new InstructionToken(0,0,[],"adiw",["r30", "0x01"]));
+
+    state.setInstructions([adiw]);
+
+    state.valueRegisters[30] = 0xff;
+    state.valueRegisters[31] = 0x00;
+
+    adiw.callback(state);
+    assert(state.valueRegisters[30].value == 0x00);
+    assert(state.valueRegisters[31].value == 0x01);
+    assert(state.sreg.C == false);
+}
+
 /** Branch If Not Equal */
 class Brne : Instruction!AtMega2560State {
     const size_t destAddress;
