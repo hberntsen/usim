@@ -881,7 +881,7 @@ class Mul : Instruction!AtMega2560State {
         state.valueRegisters[1].value = cast(ubyte)(result >>> 8);
         state.valueRegisters[0].value = cast(ubyte)(result & 0xff);
         state.sreg.Z = result == 0;
-        state.sreg.C = result & 0x8000;
+        state.sreg.C = cast(bool)(result & 0x8000);
         return 2;
     }
 }
