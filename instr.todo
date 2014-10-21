@@ -1,17 +1,3 @@
-adc
-add
-adiw
-and
-andi
-brcc
-brcs
-breq
-brge
-brlt
-brtc
-clt
-com
-cp
 dec
 eicall
 elpm

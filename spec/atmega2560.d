@@ -333,8 +333,7 @@ class Andi : Instruction!AtMega2560State {
     }
 }
 
-/** Branch If Not Equal */
-class Brne : Instruction!AtMega2560State {
+abstract class RelativeBranchInstruction : Instruction!AtMega2560State {
     const size_t destAddress;
 
     this(in InstructionToken token) {
@@ -345,14 +344,86 @@ class Brne : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        if(state.sreg.Z) {
-            return 1;
-        } else {
+        if(check(state)) {
             state.jump(destAddress);
             return 2;
+        } else {
+            return 1;
         }
     }
+
+    bool check(AtMega2560State state) const;
 }
+
+class Brcc : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AtMega2560State state) const {
+        return state.sreg.C;
+    }
+}
+
+class Brcs : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AtMega2560State state) const {
+        return !state.sreg.C;
+    }
+}
+
+class Breq : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AtMega2560State state) const {
+        return state.sreg.Z;
+    }
+}
+
+class Brge : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AtMega2560State state) const {
+        return !state.sreg.S;
+    }
+}
+
+class Brlt : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AtMega2560State state) const {
+        return state.sreg.S;
+    }
+}
+
+
+class Brne : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+    override bool check(AtMega2560State state) const {
+        return !state.sreg.Z;
+    }
+}
+
+class Brtc : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+    override bool check(AtMega2560State state) const {
+        return !state.sreg.T;
+    }
+}
+
 unittest {
     auto state = new AtMega2560State();
     state.sreg.Z = false;
@@ -362,12 +433,12 @@ unittest {
     auto nop2 = new Nop(new InstructionToken(0,4,[],"nop",[]));
     state.setInstructions([brne,nop,nop2]);
     brne.callback(state);
-    //assert(state.currentInstruction().address == 4);
+    assert(state.fetchInstruction().address == 4);
 
+    state.relativeJump(-2);
     state.sreg.Z = true;
-    state.programCounter = 0;
     brne.callback(state);
-    //assert(state.fetchInstruction().address == 2);
+    assert(state.fetchInstruction().address == 2);
 }
 
 /** Long Call to a Subroutine */
@@ -395,7 +466,7 @@ class Call : Instruction!AtMega2560State {
 ///Tests both call and ret
 unittest {
     auto state = new AtMega2560State();
-    auto nop0 = new Nop(new InstructionToken(0,0,[],"nop0",[]));
+    auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
     //call jumps to the ret instruction 
     auto call = new Call(new InstructionToken(0,2,[],"call",["0x8"]));
     auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
@@ -424,6 +495,65 @@ class Cli : Instruction!AtMega2560State {
 
     override cycleCount callback(AtMega2560State state) const {
         state.sreg.I = false;
+        return 1;
+    }
+}
+
+class Clt : Instruction!AtMega2560State {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.sreg.T = false;
+        return 1;
+    }
+}
+
+class Com : Instruction!AtMega2560State {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = ~rd;
+        state.valueRegisters[regd].value = result;
+        state.setSregLogical(result);
+        state.sreg.C = true;
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto com = new Com(new InstructionToken(0, 0, [], "com", ["r0"]));
+    state.setInstructions([com]);
+    state.valueRegisters[0].value = 0xf0;
+
+    com.callback(state);
+    assert(state.valueRegisters[0].value == 0x0f);
+    assert(state.sreg.C);
+}
+
+class Cp : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        auto rd = state.valueRegisters[regd].value;
+        auto rr = state.valueRegisters[regr].value;
+        ubyte result = cast(ubyte)(rd - rr);
+        state.setSregArithNeg(rd, rr, result);
         return 1;
     }
 }
