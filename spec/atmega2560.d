@@ -451,7 +451,7 @@ class Call : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        ubyte[] pcBytes = new ubyte[size_t.sizeof]; 
+        ubyte[] pcBytes = new ubyte[size_t.sizeof];
         //Convert PC+2 to bytes and store it on the stack
         pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter+2,0);
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
@@ -467,7 +467,7 @@ class Call : Instruction!AtMega2560State {
 unittest {
     auto state = new AtMega2560State();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
-    //call jumps to the ret instruction 
+    //call jumps to the ret instruction
     auto call = new Call(new InstructionToken(0,2,[],"call",["0x8"]));
     auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
     auto ret = new Ret(new InstructionToken(0,8,[],"ret",[]));
@@ -479,7 +479,7 @@ unittest {
     assert(state.stackPointer.value == spInit - 3);
     //Program counter that is stored should be 3, the program counter is 1
     //before call is executed, then raised to a value of 3 since the call
-    //instruction takes 4 bytes 
+    //instruction takes 4 bytes
     //assert(state.programCounter == 4);
     assert(state.data[spInit-2] == 3);
 
@@ -881,7 +881,7 @@ class Mul : Instruction!AtMega2560State {
         state.valueRegisters[1].value = cast(ubyte)(result >>> 8);
         state.valueRegisters[0].value = cast(ubyte)(result & 0xff);
         state.sreg.Z = result == 0;
-        state.sreg.C = result && 0x8000 > 0;
+        state.sreg.C = result & 0x8000;
         return 2;
     }
 }
@@ -940,7 +940,7 @@ unittest {
     assert(state.sreg.S);
     assert(!state.sreg.Z);
     assert(state.sreg.C);
-    
+
     state.valueRegisters[1] = 0x80;
     cycles = neg.callback(state);
     assert(cycles == 1);
