@@ -614,6 +614,29 @@ class Cpse : SkipInstruction {
     }
 }
 
+class Dec : Instruction!AtMega2560State {
+    uint reg;
+
+    this(in InstructionToken token) {
+        super(token);
+        reg = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[reg].value;
+        ubyte result = cast(ubyte)(rd - 1);
+        state.valueRegisters[reg].value = result;
+
+        state.sreg.V = rd == 0x80;
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+
+
 /* Exclusive OR */
 class Eor : Instruction!AtMega2560State {
     uint regd;
