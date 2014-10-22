@@ -20,6 +20,7 @@ abstract class Instruction(T) {
 
     this(in InstructionToken token) {
         this.address = token.address;
+        this.lineNumber = token.lineNumber;
         this.name = token.name;
         this.token = token;
     }
@@ -45,8 +46,13 @@ abstract class Instruction(T) {
         return to!uint(param);
     }
 
+    public override string toString() const {
+         return format("%d\t%x\t%s",lineNumber,address,name);
+    }
+
     string name; //e.g. ADDI
     size_t address; //absolute address of instruction in memory
+    size_t lineNumber;
     const InstructionToken token;
 }
 
