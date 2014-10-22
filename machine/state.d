@@ -138,6 +138,7 @@ class Memory {
 }
 
 interface MachineState {
+    @property size_t programCounter();
     @property Register[] registers();
     @property Memory[string]  memories();
 

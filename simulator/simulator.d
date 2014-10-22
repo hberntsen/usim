@@ -55,10 +55,13 @@ class Simulator(T) {
     }
 
     public SimulatorState run() {
+        size_t previousPc;
         try {
-            while (true) {
+            step();
+            do {
+                previousPc = machineState.programCounter;
                 step();
-            }
+            } while(previousPc != machineState.programCounter);
         } catch (spec.base.EOFException e) {
         }
         return this.simulatorState;
