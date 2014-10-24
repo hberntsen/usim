@@ -70,6 +70,13 @@ class InstructionsWrapper(T) {
         return instructions[currentIndex];
     }
 
+    @property Instruction!T next() {
+        if (nextIndex >= instructions.length) {
+            return null;
+        }
+        return instructions[nextIndex];
+    }
+
     this(Instruction!T[] instructions, size_t addressOffset = 0) {
         this.instructions = instructions;
         this.averageSize = averageInstructionSize(instructions);
@@ -96,26 +103,28 @@ class InstructionsWrapper(T) {
     }
 
     invariant() {
-        assert(currentIndex <= instructions.length
-                || instructions.length == 0);
+        assert((currentIndex < instructions.length) || instructions.length == 0);
+        assert((nextIndex <= instructions.length) || instructions.length == 0);
     }
 
     override string toString() {
-        return format("[currentIndex: %d, nextIndex: %d]", currentIndex,
-                nextIndex);
+        return format("{[current: (%s, %d), next: (%s,%d)]", current.name,
+                currentIndex, next, nextIndex);
     }
 
     Instruction!T fetch() {
+        auto instr = next();
+        if (instr is null) {
+            throw new EOFException();
+        }
         currentIndex = nextIndex;
-        auto instr = current();
         nextIndex = currentIndex + 1;
 
         return instr;
     }
 
-    Instruction!T relativeJump(size_t offset) {
+    void relativeJump(size_t offset) {
         nextIndex = currentIndex + offset;
-        return fetch();
     }
 
     enum Direction {UP, DOWN, UNSET};
@@ -133,7 +142,9 @@ class InstructionsWrapper(T) {
                 break;
             }
         }
-        enforce(guess != -1, "No instruction found");
+        if (guess == -1) {
+            throw new Exception("No instruction found");
+        }
         //size_t guess = (requestedAddress-addressOffset) / averageSize;
         //if(guess >= instructions.length) { guess = instructions.length - 1;}
         //Direction d = Direction.UNSET;
@@ -175,12 +186,17 @@ unittest {
         new TestInstruction(2,"second"),
         new TestInstruction(4,"third-wide"),
         new TestInstruction(10,"fourth")
-            ]);
+    ]);
 
-    assert(wrapper.relativeJump(0).address == 0);
-    assert(wrapper.relativeJump(1).address == 2);
-    assert(wrapper.relativeJump(1).address == 4);
-    assert(wrapper.relativeJump(-2).address == 0);
+    wrapper.relativeJump(0);
+    assert(wrapper.fetch().address == 0);;
+    wrapper.relativeJump(1);
+    assert(wrapper.fetch().address == 2);;
+    wrapper.relativeJump(1);
+    assert(wrapper.fetch().address == 4);;
+    wrapper.relativeJump(-2);
+    assert(wrapper.fetch().address == 0);;
+
     wrapper.jump(10);
     assert(wrapper.fetch().name == "fourth");
     bool exception = false;

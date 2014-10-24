@@ -82,6 +82,7 @@ class Simulator(T) {
         //writefln("\tRefrefs (after): %s", machineState.refregs);
         //writefln("\tRegisters (after): %s", machineState.registers);
         //writefln("\tFlags (after): %s", machineState.sreg);
+
         this.simulatorState.cycles += cycles;
         return cycles;
     }
@@ -104,11 +105,11 @@ unittest {
             [".-4"]);
     Instruction!(AtMega2560State)[] instrs = [new Ldi(tok1), new Ldi(tok2)/*, new Rjmp(tok3)*/];
 
-    writeln(instrs);
+    //writeln(instrs);
     state.setInstructions(instrs);
 
     writeln("Applying instructions");
     sim.run();
 
-    writeln(sim.machineState.registers);
+    //writeln(sim.machineState.registers);
 }

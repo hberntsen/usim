@@ -80,7 +80,9 @@ class AtMega2560State : MachineState {
         assert(stackPointer.value > 0x0200);
     }
 
-    @property size_t programCounter() { return instructions.current.address/2; }
+    @property size_t programCounter() {
+        return instructions.next.address/2;
+    }
     @property size_t programCounter(size_t newpc) {
         instructions.jump(newpc*2);
         return programCounter();
@@ -118,6 +120,10 @@ class AtMega2560State : MachineState {
 
     @property Instruction!AtMega2560State currentInstruction() {
         return instructions.current;
+    }
+
+    @property Instruction!AtMega2560State nextInstruction() {
+        return instructions.next;
     }
 
     Instruction!AtMega2560State fetchInstruction() {
@@ -437,6 +443,8 @@ unittest {
 
     state.relativeJump(-2);
     state.sreg.Z = true;
+    auto instr = state.fetchInstruction();
+    assert(instr == brne);
     brne.callback(state);
     assert(state.fetchInstruction().address == 2);
 }
@@ -453,7 +461,7 @@ class Call : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
         ubyte[] pcBytes = new ubyte[size_t.sizeof];
         //Convert PC+2 to bytes and store it on the stack
-        pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter+2,0);
+        pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter, 0);
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
             pcBytes[0 .. 3];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
@@ -472,20 +480,25 @@ unittest {
     auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
     auto ret = new Ret(new InstructionToken(0,8,[],"ret",[]));
     state.setInstructions([nop0,call,nop1,ret]);
+
     ushort spInit = state.stackPointer.value;
-    nop0.callback(state);
+
+    state.fetchInstruction().callback(state); //nop
+    auto instr = state.fetchInstruction();
+    assert(instr == call);
     call.callback(state);
 
     assert(state.stackPointer.value == spInit - 3);
-    //Program counter that is stored should be 3, the program counter is 1
-    //before call is executed, then raised to a value of 3 since the call
-    //instruction takes 4 bytes
-    //assert(state.programCounter == 4);
+    //Program counter that is stored on the stack should be 3, the program counter is 1 before call is executed,
+    // then raised to a value of 3 since the call instruction takes 4 bytes 
+    assert(state.programCounter == 4);
     assert(state.data[spInit-2] == 3);
 
     //Done testing call, now test ret
+    instr = state.fetchInstruction();
+    assert(instr == ret);
     ret.callback(state);
-    //assert(state.programCounter == 3);
+    assert(state.programCounter == 3);
     assert(state.stackPointer.value == spInit);
 }
 
@@ -774,10 +787,11 @@ class Sts : Instruction!AtMega2560State {
 }
 
 class Nop : Instruction!AtMega2560State {
-    this(in InstructionToken token) { super(token);}
+    this(in InstructionToken token) {
+        super(token);
+    }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.relativeJump(1);
         return 1;
     }
 }
@@ -826,11 +840,13 @@ unittest {
     auto nop1 = new Nop(new InstructionToken(0,2,[],"nop1",[]));
     auto rjmp2 = new Rjmp(new InstructionToken(0,4,[],"rjmp",[".-4"]));
     state.setInstructions([rjmp,nop1,rjmp2]);
+
+    state.fetchInstruction(); // fetch rjmp
     auto cycles = rjmp.callback(state);
     assert(cycles == 2);
-    //assert(state.currentInstruction.address == 4);
+    assert(state.fetchInstruction().address == 4);
     rjmp2.callback(state);
-    //assert(state.currentInstruction.address == 2);
+    assert(state.fetchInstruction().address == 2);
 }
 
 class Mov : Instruction!AtMega2560State {
@@ -1050,7 +1066,7 @@ abstract class SkipInstruction :Instruction!AtMega2560State {
             state.relativeJump(2);
             //Calculate difference between addresses of next 2 instructions
             //+2 since this instruction is 2 bytes
-            ulong skipSize = state.currentInstruction.address - (address + 2);
+            size_t skipSize = state.nextInstruction.address - (address + 2);
 
             if(skipSize == 2) {
                 return 2;
@@ -1059,7 +1075,6 @@ abstract class SkipInstruction :Instruction!AtMega2560State {
                 return 3;
             }
         } else {
-            state.relativeJump(1);
             return 1;
         }
     }
@@ -1105,6 +1120,7 @@ unittest {
     state.setInstructions([sbrs,nop1,nop2]);
 
     //Should not have skipped instruction
+    state.fetchInstruction();
     assert(sbrs.callback(state) == 1);
     assert(state.programCounter == 1);
 
