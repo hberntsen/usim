@@ -6,10 +6,19 @@ import machine.state;
 import spec.base;
 import spec.atmega2560;
 import parser.parser;
+import std.string;
+import std.conv;
 
 struct SimulatorState {
     ulong cycles;
     TickDuration runningTime;
+
+    public string toString() {
+        double seconds = to!double(runningTime.usecs)/1e6;
+        double frequencymMhz = cycles/seconds/1e6;
+        return format("%d cycles\n%d usec\n%f seconds\n%f MHz",
+                cycles,runningTime.usecs,seconds,frequencymMhz);
+    }
 }
 
 //Input: initial machine state (code is part of the machine state)

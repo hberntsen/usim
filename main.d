@@ -10,7 +10,10 @@ import simulator.simulator;
 
 void main(string[] args) {
     string filename;
-    getopt(args, "file", &filename);
+    bool nostats = false;
+    getopt(args,
+            "file", &filename,
+            "nostats", &nostats);
 
     File file = File(filename, "r");
     InstructionToken[] instructions = parse(file);
@@ -20,5 +23,8 @@ void main(string[] args) {
     auto sim = new Simulator!AtMega2560State(state);
 
     sim.initialiseInstructions(instructions);
-    sim.run();
+    auto simulatorState = sim.run();
+    if(!nostats) {
+        stderr.writeln(simulatorState);
+    }
 }
