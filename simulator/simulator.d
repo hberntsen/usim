@@ -1,7 +1,7 @@
 module simulator.simulator;
 
 import std.stdio;
-
+import std.datetime : StopWatch, TickDuration;
 import machine.state;
 import spec.base;
 import spec.atmega2560;
@@ -9,6 +9,7 @@ import parser.parser;
 
 struct SimulatorState {
     ulong cycles;
+    TickDuration runningTime;
 }
 
 //Input: initial machine state (code is part of the machine state)
@@ -55,15 +56,19 @@ class Simulator(T) {
     }
 
     public SimulatorState run() {
+        StopWatch stopWatch;
         size_t previousPc;
         try {
+            stopWatch.start();
             step();
             do {
                 previousPc = machineState.programCounter;
                 step();
             } while(previousPc != machineState.programCounter);
+            stopWatch.stop();
         } catch (spec.base.EOFException e) {
         }
+        this.simulatorState.runningTime = stopWatch.peek();
         return this.simulatorState;
     }
 
