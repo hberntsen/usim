@@ -179,6 +179,78 @@ class AtMega2560State : MachineState {
     }
 }
 
+class AtMega2560Factory : MachineFactory {
+    static this() {
+        machineFactories["atmega2560"] = new this();
+    }
+
+    static Instruction!AtMega2560State createInstruction(AtMega2560State)(in InstructionToken tok) {
+        switch (tok.name) {
+            case "add" : return new Add(tok);
+            case "adiw": return new Adiw(tok);
+            case "andi": return new Andi(tok);
+            case "and": return new Adiw(tok);
+            case "brcc": return new Brcc(tok);
+            case "brcs": return new Brcs(tok);
+            case "breq": return new Breq(tok);
+            case "brge": return new Brge(tok);
+            case "brne": return new Brne(tok);
+            case "brtc": return new Brtc(tok);
+            case "brlt": return new Brlt(tok);
+            case "call": return new Call(tok);
+            case "cli": return new Cli(tok);
+            case "clt": return new Clt(tok);
+            case "com": return new Com(tok);
+            case "cp": return new Cp(tok);
+            case "cpc": return new Cpc(tok);
+            case "cpi": return new Cpi(tok);
+            case "cpse": return new Cpse(tok);
+            case "dec": return new Dec(tok);
+            case "eor": return new Eor(tok);
+            case "jmp": return new Jmp(tok);
+            case "ldi": return new Ldi(tok);
+            case "lds": return new Lds(tok);
+            case "out": return new Out(tok);
+            case "st": return new St(tok);
+            case "sts": return new Sts(tok);
+            case "nop": return new Nop(tok);
+            case "ret": return new Ret(tok);
+            case "rjmp": return new Rjmp(tok);
+            case "mov": return new Mov(tok);
+            case "movw": return new Movw(tok);
+            case "neg": return new Neg(tok);
+            case "or": return new Or(tok);
+            case "ori": return new Ori(tok);
+            case "sbrs": return new Sbrs(tok);
+            case "write_byte": return new WriteByte(tok);
+            default: throw new Exception("Unknown instruction: " ~ tok.name);
+        }
+    }
+
+    static Instruction!AtMega2560State[] createInstructions(in InstructionToken[] tokens) {
+        Instruction!AtMega2560State[] instructions = [];
+        foreach (tok; tokens) {
+            instructions ~= createInstruction!AtMega2560State(tok);
+        }
+        return instructions;
+    }
+
+    static Memory fillProgramMemory(in InstructionToken[] tokens, Memory
+            programMemory) {
+        foreach(tok; tokens) {
+            programMemory[tok.address .. tok.address + tok.raw.length] = tok.raw;
+        }
+        return programMemory;
+    }
+
+    override MachineState createState(in InstructionToken[] tokens) const {
+        auto state = new AtMega2560State();
+        state.setInstructions(createInstructions(tokens));
+        state.program = fillProgramMemory(tokens, state.program);
+        return state;
+    }
+}
+
 /** Add without Carry */
 class Add : Instruction!AtMega2560State {
     uint dest;

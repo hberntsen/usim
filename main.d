@@ -6,11 +6,13 @@ import std.getopt;
 import parser.parser;
 import spec.atmega2560;
 import spec.base;
+import machine.state;
 import simulator.simulator;
 
 void main(string[] args) {
     string filename;
     bool nostats = false;
+    string machine = "atmega2560";
     getopt(args,
             "file", &filename,
             "nostats", &nostats);
@@ -19,10 +21,9 @@ void main(string[] args) {
     InstructionToken[] instructions = parse(file);
     file.close();
 
-    auto state = new AtMega2560State;
+    AtMega2560State state = cast(AtMega2560State)machineFactories[machine].createState(instructions);
     auto sim = new Simulator!AtMega2560State(state);
 
-    sim.initialiseInstructions(instructions);
     auto simulatorState = sim.run();
     if(!nostats) {
         stderr.writeln(simulatorState);

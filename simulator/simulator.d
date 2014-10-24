@@ -31,39 +31,6 @@ class Simulator(T) {
         this.simulatorState = SimulatorState(0);
     }
 
-    void initialiseInstructions(InstructionToken[] tokens) {
-        Instruction!T[] instructions = [];
-        foreach (i, tok; tokens) {
-            instructions ~= createInstruction!T(tok);
-        }
-        machineState.setInstructions(instructions);
-    }
-
-    Instruction!T createInstruction(AtMega2560State)(InstructionToken tok) {
-        //writeln(tok);
-        switch (tok.name) {
-            case "brne": return new Brne(tok);
-            case "call": return new Call(tok);
-            case "cli": return new Cli(tok);
-            case "cpc": return new Cpc(tok);
-            case "cpi": return new Cpi(tok);
-            case "cpse": return new Cpse(tok);
-            case "eor": return new Eor(tok);
-            case "ldi": return new Ldi(tok);
-            case "lds": return new Lds(tok);
-            case "out": return new Out(tok);
-            case "st": return new St(tok);
-            case "sts": return new Sts(tok);
-            case "nop": return new Nop(tok);
-            case "ret": return new Ret(tok);
-            case "rjmp": return new Rjmp(tok);
-            case "jmp": return new Jmp(tok);
-            case "sbrs": return new Sbrs(tok);
-            case "write_byte": return new WriteByte(tok);
-            default: throw new Exception("Unknown instruction: " ~ tok.name);
-        }
-    }
-
     public SimulatorState run() {
         StopWatch stopWatch;
         size_t previousPc;

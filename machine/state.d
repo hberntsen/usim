@@ -5,8 +5,8 @@ import std.conv;
 import std.bitmanip;
 import std.system;
 import std.string;
-
 import spec.base;
+import parser.parser : InstructionToken;
 
 abstract class Register
 {
@@ -141,5 +141,10 @@ interface MachineState {
     @property size_t programCounter();
     @property Register[] registers();
     @property Memory[string]  memories();
-
 }
+
+abstract class MachineFactory {
+    public MachineState createState(in InstructionToken[] token) const;
+}
+
+MachineFactory[string] machineFactories;
