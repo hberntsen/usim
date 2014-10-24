@@ -25,6 +25,8 @@ abstract class Instruction(T) {
         this.token = token;
     }
 
+    public void optimize(in InstructionsWrapper!T instructions){}
+
     protected static uint parseNumericRegister(string param) {
         enforce(param[0] == 'r');
         return to!uint(param[1..$]);
@@ -80,6 +82,13 @@ class InstructionsWrapper(T) {
     this(Instruction!T[] instructions, size_t addressOffset = 0) {
         this.instructions = instructions;
         this.averageSize = averageInstructionSize(instructions);
+        optimize();
+    }
+
+    protected void optimize() {
+        foreach(instr; instructions) {
+            instr.optimize(this);
+        }
     }
 
     private static size_t averageInstructionSize(in Instruction!T[] instructions)
@@ -133,7 +142,7 @@ class InstructionsWrapper(T) {
      instruction size heuristic to find the correct position in the array
      and then search until we find it.
       */
-    void jump(size_t requestedAddress) {
+    size_t getInstructionIndex(size_t requestedAddress) const {
         assert(instructions.length > 0);
         size_t guess  = -1;
         foreach (i, instr; instructions) {
@@ -165,7 +174,15 @@ class InstructionsWrapper(T) {
                     //format("No instruction at specified address: %x",
                         //requestedAddress));
         //}
-        nextIndex = guess;
+        return guess;
+    }
+
+    void jump(size_t address) {
+        nextIndex = getInstructionIndex(address);
+    }
+    
+    void jumpIndex(size_t index) {
+        nextIndex = index;
     }
 }
 

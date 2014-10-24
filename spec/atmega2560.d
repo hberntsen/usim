@@ -138,6 +138,10 @@ class AtMega2560State : MachineState {
         instructions.jump(address);
     }
 
+    void jumpIndex(size_t index) {
+        instructions.jumpIndex(index);
+    }
+
     void relativeJump(int instructionOffset) {
         instructions.relativeJump(instructionOffset);
     }
@@ -891,18 +895,22 @@ class Ret : Instruction!AtMega2560State {
 }
 
 class Rjmp : Instruction!AtMega2560State {
-    const size_t destAddress;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
         int jumpOffset = parseInt(token.parameters[0]);
         assert(jumpOffset <= 2000);
         assert(-2000 <= jumpOffset);
-        destAddress = this.address + 2 + jumpOffset;
+        dest = this.address + 2 + jumpOffset;
+    }
+
+    override void optimize(in InstructionsWrapper!AtMega2560State instructions) {
+        dest = instructions.getInstructionIndex(dest);
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        state.jump(destAddress);
+        state.jumpIndex(dest);
         return 2;
     }
 }
