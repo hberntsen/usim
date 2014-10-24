@@ -89,7 +89,6 @@ class Simulator(T) {
 }
 
 unittest {
-    writeln("simulator");
     import spec.base;
     import spec.atmega2560;
     import parser.parser;
@@ -100,16 +99,14 @@ unittest {
     InstructionToken tok1 = new InstructionToken(1, 0x00, [0xcf, 0xef], "ldi",
             ["r1", "0xFF"]);
     InstructionToken tok2 = new InstructionToken(2, 0x02, [0xcf, 0xef], "ldi",
-            ["r2", "0xFF"]);
+            ["r2", "0xAA"]);
     InstructionToken tok3 = new InstructionToken(3, 0x04, [0x02, 0xc0], "rjmp",
-            [".-4"]);
-    Instruction!(AtMega2560State)[] instrs = [new Ldi(tok1), new Ldi(tok2)/*, new Rjmp(tok3)*/];
+            [".-2"]);
+    Instruction!(AtMega2560State)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp(tok3)];
 
-    //writeln(instrs);
     state.setInstructions(instrs);
-
-    writeln("Applying instructions");
-    sim.run();
-
-    //writeln(sim.machineState.registers);
+    auto simstate = sim.run();
+    assert(simstate.cycles==4);
+    assert(state.registers[1].bytes[0] == 0xff);
+    assert(state.registers[2].bytes[0] == 0xaa);
 }
