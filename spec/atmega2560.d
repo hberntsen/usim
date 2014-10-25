@@ -1136,6 +1136,358 @@ unittest {
     assert(!state.sreg.Z);
 }
 
+class Pop : Instruction!AtMega2560State {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value + 1);
+        state.valueRegisters[regd].value = state.data[state.stackPointer.value];
+        return 2;
+    }
+}
+
+class Push : Instruction!AtMega2560State {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.data[state.stackPointer.value] = state.valueRegisters[regd].value;
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 1);
+        return 2;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.valueRegisters[0] = 42;
+    auto push = new Push(new InstructionToken(0, 0, [], "push", ["r0"]));
+    auto cycles = push.callback(state);
+    assert(cycles == 2);
+    assert(state.stackPointer.value == 8701);
+    assert(state.data[8702] == 42);
+    auto pop = new Pop(new InstructionToken(0, 0, [], "push", ["r1"]));
+    cycles = pop.callback(state);
+    assert(cycles == 2);
+    assert(state.stackPointer.value == 8702);
+    assert(state.valueRegisters[1].value == 42);
+}
+
+class Rcall : Instruction!AtMega2560State {
+    const ushort k;
+
+    this(in InstructionToken token) {
+        super(token);
+        k = cast(ushort)(parseHex(token.parameters[0]));
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        size_t pc = state.programCounter + 1;
+        //Convert PC+2 to bytes and store it on the stack
+        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
+            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
+
+        state.relativeJump(address);
+
+        return 4;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
+    //rcall jumps to the ret instruction
+    auto rcall = new Rcall(new InstructionToken(0,2,[],"rcall",["0x2"]));
+    auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
+    auto ret = new Ret(new InstructionToken(0,6,[],"ret",[]));
+    state.setInstructions([nop0,rcall,nop1,ret]);
+
+    ushort spInit = state.stackPointer.value;
+
+    state.fetchInstruction().callback(state); //nop
+    auto instr = state.fetchInstruction();
+    assert(instr == rcall);
+    rcall.callback(state);
+
+    assert(state.stackPointer.value == spInit - 3);
+    assert(state.programCounter == 3);
+    assert(state.data[spInit-2] == 3);
+}
+
+class Ror : Instruction!AtMega2560State {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = rd >>> 1 | (state.sreg.C ? 0x80 : 0);
+        state.valueRegisters[regd].value = result;
+        state.sreg.N = cast(bool)(result & 0b10000000);
+        state.sreg.Z = result == 0;
+        state.sreg.C = rd & 1;
+        state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.S = state.sreg.V ^ state.sreg.N;
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.sreg.C = false;
+    state.valueRegisters[1].value = 0b00101101;
+    auto ror = new Ror(new InstructionToken(0,0,[],"ror",["r1"]));
+    auto cycles = ror.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[1].value == 0b00010110);
+    assert(!state.sreg.N);
+    assert(!state.sreg.Z);
+    assert(state.sreg.C);
+    assert(state.sreg.V);
+    assert(state.sreg.S);
+    cycles = ror.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[1].value == 0b10001011);
+    assert(state.sreg.N);
+    assert(!state.sreg.Z);
+    assert(!state.sreg.C);
+    assert(state.sreg.V);
+    assert(!state.sreg.S);
+}
+
+class Sbc : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte rr = state.valueRegisters[regr].value;
+        ubyte result = cast(ubyte)(rd - rr - state.sreg.C);
+        state.valueRegisters[regd].value = result;
+        state.setSregArithNeg(rd, rr, result);
+
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.sreg.C = false;
+    state.valueRegisters[2] = 8;
+    state.valueRegisters[0] = 15;
+    auto sbc = new Sbc(new InstructionToken(0,0,[],"sbc",["r2", "r0"]));
+    auto cycles = sbc.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[2].value == 249);
+    assert(state.sreg.C);
+    sbc.callback(state);
+    assert(state.valueRegisters[2].value == 233);
+    assert(!state.sreg.C);
+}
+
+class Sbci : Instruction!AtMega2560State {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)(parseHex(token.parameters[1]));
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = cast(ubyte)(rd - k - state.sreg.C);
+        state.valueRegisters[regd].value = result;
+        state.setSregArithNeg(rd, k, result);
+
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.sreg.C = false;
+    state.valueRegisters[2] = 8;
+    auto sbci = new Sbci(new InstructionToken(0,0,[],"sbc",["r2", "15"]));
+    auto cycles = sbci.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[2].value == 249);
+    assert(state.sreg.C);
+    sbci.callback(state);
+    assert(state.valueRegisters[2].value == 233);
+    assert(!state.sreg.C);
+}
+
+class Sbiw : Instruction!AtMega2560State {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)(parseHex(token.parameters[1]));
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ushort rd = state.valueRegisters[regd + 1].value << 8 | state.valueRegisters[regd].value;
+        ushort result = cast(ushort)(rd - k);
+        state.valueRegisters[regd + 1] = cast(ubyte)(result >>> 8);
+        state.valueRegisters[regd].value = cast(ubyte)(result);
+ 
+        state.sreg.V = cast(bool)(rd & (result ^ 0x8000) & 0x8000);
+        state.sreg.N = cast(bool)(result & 0x8000);
+        state.sreg.Z = result == 0;
+        state.sreg.C = cast(bool)(result & (rd ^ 0x8000) & 0x8000);
+        state.sreg.S = state.sreg.V ^ state.sreg.N;
+
+        return 2;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.valueRegisters[24] = 0x13;
+    state.valueRegisters[25] = 0x30;
+    auto sbiw = new Sbiw(new InstructionToken(0,0,[],"sbc",["r24", "0x15"]));
+    auto cycles = sbiw.callback(state);
+    assert(cycles == 2);
+    assert(state.valueRegisters[24].value == 0xfe);
+    assert(state.valueRegisters[25].value == 0x2f);
+    assert(!state.sreg.V);
+    assert(!state.sreg.N);
+    assert(!state.sreg.Z);
+    assert(!state.sreg.C);
+    assert(!state.sreg.S);
+}
+
+class Set : Instruction!AtMega2560State {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.sreg.T = 1;
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.sreg.T = false;
+    auto set = new Set(new InstructionToken(0,0,[],"set",[]));
+    auto cycles = set.callback(state);
+    assert(cycles == 1);
+    assert(state.sreg.T);
+}
+
+class Std : Instruction!AtMega2560State {
+    string refreg;
+    uint q;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        refreg = token.parameters[0][0..1].dup;
+        assert(token.parameters[0][1] == '+');
+        q = parseHex(token.parameters[0][2..$]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+      state.memories["data"][state.refregs[refreg] + q] = state.valueRegisters[regr].value;
+      return 2;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.refregs["Z"] = 0x0242;
+    state.valueRegisters[0] = 42;
+    auto std = new Std(new InstructionToken(0,0,[],"std",["Z+8", "r0"]));
+    auto cycles = std.callback(state);
+    assert(cycles == 2);
+    assert(state.memories["data"][0x024A] == 42);
+}
+
+class Sub : Instruction!AtMega2560State {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte rr = state.valueRegisters[regr].value;
+        ubyte result = cast(ubyte)(rd - rr);
+        state.valueRegisters[regd].value = result;
+        state.setSregArithNeg(rd, rr, result);
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.valueRegisters[2] = 8;
+    state.valueRegisters[0] = 15;
+    auto sub = new Sub(new InstructionToken(0,0,[],"sub",["r2", "r0"]));
+    auto cycles = sub.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[2].value == 249);
+    assert(state.sreg.C);
+    sub.callback(state);
+    assert(state.valueRegisters[2].value == 234);
+    assert(!state.sreg.C);
+}
+
+class Subi : Instruction!AtMega2560State {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)(parseHex(token.parameters[1]));
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = cast(ubyte)(rd - k);
+        state.valueRegisters[regd].value = result;
+        state.setSregArithNeg(rd, k, result);
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+unittest {
+    auto state = new AtMega2560State();
+    state.valueRegisters[2] = 8;
+    auto subi = new Subi(new InstructionToken(0,0,[],"subi",["r2", "15"]));
+    auto cycles = subi.callback(state);
+    assert(cycles == 1);
+    assert(state.valueRegisters[2].value == 249);
+    assert(state.sreg.C);
+    subi.callback(state);
+    assert(state.valueRegisters[2].value == 234);
+    assert(!state.sreg.C);
+}
+
 abstract class SkipInstruction :Instruction!AtMega2560State {
     this(in InstructionToken token) {super(token);}
 
@@ -1175,6 +1527,23 @@ class Sbrs : SkipInstruction {
     override bool shouldSkip(AtMega2560State state) const {
         size_t regValue = state.valueRegisters[register].value;
         return bt(&regValue,bit) > 0;
+    }
+}
+
+class Sbrc : SkipInstruction {
+    uint register;
+    int bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        register = parseNumericRegister(token.parameters[0]);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override bool shouldSkip(AtMega2560State state) const {
+        size_t regValue = state.valueRegisters[register].value;
+        return bt(&regValue,bit) == 0;
     }
 }
 

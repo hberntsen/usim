@@ -7,21 +7,3 @@ ldd
 lpm
 lsr
 
-mov
-movw
-mul
-neg
-or
-ori
-pop
-push
-rcal
-ror
-sbc
-sbci
-sbiw
-sbrc
-set
-std
-sub
-subi
