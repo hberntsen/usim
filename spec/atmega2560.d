@@ -895,6 +895,34 @@ class Jmp : Instruction!AtMega2560State {
     }
 }
 
+class In : Instruction!AtMega2560State {
+    uint regd;
+    size_t ioAddr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        ioAddr = parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        state.valueRegisters[regd].value = state.getIoRegisterByIo(ioAddr).value;
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto in1 = new In(new InstructionToken(0,0,[], "in", ["r0", "0x3b"]));
+
+    state.setInstructions([in1]);
+    state.setIoRegisterByIo(0x3b, 0xab);
+
+    state.fetchInstruction();
+    in1.callback(state);
+    assert(state.valueRegisters[0].value == 0xab);
+}
+
 /* Load immediate */
 class Ldi : Instruction!AtMega2560State {
     uint regd;
