@@ -74,6 +74,7 @@ class AtMega2560State : MachineState {
     ReferenceRegister!ushort stackPointer;
     protected InstructionsWrapper!AtMega2560State instructions;
     ReferenceRegister!(ubyte)[32] valueRegisters;
+    ReferenceRegister!(ubyte)[64] ioRegisters;
 
     invariant() {
         //As specified in the ATmega2560 manual
@@ -103,6 +104,11 @@ class AtMega2560State : MachineState {
 
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
+        }
+
+        for(int i = 0; i < ioRegisters.length; i++) {
+            ioRegisters[i] = new ReferenceRegister!ubyte(format("io:%x",
+                        cast(size_t)(i + 0x20)), i + 0x40, data);
         }
     }
 
@@ -174,6 +180,24 @@ class AtMega2560State : MachineState {
         else if(!preserveZ)
             sreg.Z = c == 0;
         sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+    }
+
+    ReferenceRegister!ubyte setIoRegisterByIo(size_t addr, ubyte value) {
+        this.ioRegisters[addr - 0x20].value = value;
+        return this.ioRegisters[addr - 0x20];
+    }
+
+    ReferenceRegister!ubyte setIoRegisterByData(size_t addr, ubyte value) {
+        this.ioRegisters[addr - 0x40].value = value;
+        return this.ioRegisters[addr - 0x40];
+    }
+
+    ReferenceRegister!ubyte getIoRegisterByIo(size_t addr) {
+        return this.ioRegisters[addr - 0x20];
+    }
+
+    ReferenceRegister!ubyte getIoRegisterByData(size_t addr) {
+        return this.ioRegisters[addr - 0x40];
     }
 
     private static bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
@@ -742,7 +766,7 @@ class Eicall : Instruction!AtMega2560State {
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
         size_t z = cast(size_t)(state.refregs["Z"]);
-        size_t eind = cast(size_t)(state.memories["data"][cast(size_t)(0x3c)]);
+        size_t eind = state.getIoRegisterByIo(0x3c);
 
         size_t address = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
         writefln("%x, %x -> %x, %x -> %x", z, eind, z & 0x00ffff, (eind & 0x00ffff) << 16, address);
@@ -762,7 +786,7 @@ unittest {
     auto ret = new Ret(new InstructionToken(0,0x211001,[],"ret",[]));
     state.setInstructions([nop0,eicall,nop1,ret]);
     state.refregs["Z"].value = cast(ushort)(0x1001);
-    state.memories["data"][0x3c] = cast(ubyte)(0x21);
+    state.setIoRegisterByIo(0x3c, cast(ubyte)(0x21));
 
     ushort spInit = state.stackPointer.value;
 
@@ -776,6 +800,63 @@ unittest {
     assert(state.data[spInit-2] == 2);
 }
 
+class Elpm : Instruction!AtMega2560State {
+    uint regd;
+    bool postinc;
+
+    this(in InstructionToken token) {
+        super(token);
+        enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
+        if(token.parameters[1].length == 2) {
+            postinc = token.parameters[1][1] == '+';
+        }
+
+        regd = parseNumericRegister(token.parameters[0]);
+
+        enforce(!((regd == 30 && postinc) || (regd == 31 && postinc)),
+                "Undefined behavior");
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        size_t z = cast(size_t)(state.refregs["Z"]);
+        size_t rampz = cast(size_t)(state.getIoRegisterByIo(0x3b));
+
+        size_t offset = (z & 0x0001);
+
+        size_t address = (z & 0x00ffff) + ((rampz & 0x00ffff) << 16);
+        ubyte value = state.memories["program"][address + (offset == 0 ? 1 : 0)];
+
+        state.valueRegisters[regd] = value;
+
+        if(postinc) {
+            address = (address + 1) & 0xffffff;
+        }
+
+        state.setIoRegisterByIo(0x3b, cast(ubyte)(address >> 16));
+        state.refregs["Z"].value = cast(ushort)(address & 0x00ffff);
+        return 3;
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto elpm = new Elpm(new InstructionToken(0,0,[], "elpm", ["r0", "Z+"]));
+    auto elpm2 = new Elpm(new InstructionToken(0,2,[], "elpm", ["r1", "Z"]));
+
+    state.setInstructions([elpm, elpm2]);
+    state.setIoRegisterByIo(0x3b, 0x01);
+    state.refregs["Z"].value = 0x1000;
+    state.memories["program"][0x011000] = 0xaa;
+    state.memories["program"][0x011000 + 1] = 0xbb;
+
+    state.fetchInstruction();
+    elpm.callback(state);
+    assert(state.valueRegisters[0].value == 0xbb);
+    assert(state.refregs["Z"].value == 0x1001);
+    state.fetchInstruction();
+    elpm2.callback(state);
+    assert(state.valueRegisters[1].value = 0xaa);
+}
 
 
 /* Exclusive OR */
