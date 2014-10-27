@@ -142,7 +142,7 @@ class AtMega2560State : MachineState {
         instructions.jumpIndex(index);
     }
 
-    void relativeJump(int instructionOffset) {
+    void relativeJump(in int instructionOffset) {
         instructions.relativeJump(instructionOffset);
     }
 
@@ -547,6 +547,7 @@ class Call : Instruction!AtMega2560State {
         return 5;
     }
 }
+
 ///Tests both call and ret
 unittest {
     auto state = new AtMega2560State();
@@ -724,6 +725,57 @@ class Dec : Instruction!AtMega2560State {
         return 1;
     }
 }
+
+class Eicall : Instruction!AtMega2560State {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte[] pcBytes = new ubyte[size_t.sizeof];
+
+        //Convert PC+1 to bytes and store it on the stack
+        pcBytes.write!(size_t, Endian.littleEndian)(state.programCounter, 0);
+        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
+            pcBytes[0 .. 3];
+
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
+
+        size_t z = cast(size_t)(state.refregs["Z"]);
+        size_t eind = cast(size_t)(state.memories["data"][cast(size_t)(0x3c)]);
+
+        size_t address = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
+        writefln("%x, %x -> %x, %x -> %x", z, eind, z & 0x00ffff, (eind & 0x00ffff) << 16, address);
+
+        state.jump(address);
+
+        return 4; // NOTE: 3 on XMEGA
+    }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
+    //rcall jumps to the ret instruction
+    auto eicall = new Eicall(new InstructionToken(0,2,[],"eicall",[]));
+    auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
+    auto ret = new Ret(new InstructionToken(0,0x211001,[],"ret",[]));
+    state.setInstructions([nop0,eicall,nop1,ret]);
+    state.refregs["Z"].value = cast(ushort)(0x1001);
+    state.memories["data"][0x3c] = cast(ubyte)(0x21);
+
+    ushort spInit = state.stackPointer.value;
+
+    state.fetchInstruction().callback(state); //nop
+    auto instr = state.fetchInstruction();
+    assert(instr == eicall);
+    eicall.callback(state);
+
+    assert(state.stackPointer.value == spInit - 3);
+    assert(state.nextInstruction.address == 0x211001);
+    assert(state.data[spInit-2] == 2);
+}
+
 
 
 /* Exclusive OR */
@@ -1195,11 +1247,12 @@ class Rcall : Instruction!AtMega2560State {
             [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
-        state.relativeJump(address);
+        state.relativeJump(k);
 
         return 4;
     }
 }
+
 unittest {
     auto state = new AtMega2560State();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
