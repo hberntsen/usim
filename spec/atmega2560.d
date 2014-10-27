@@ -951,7 +951,7 @@ class Ld : Instruction!AtMega2560State {
 
     this(in InstructionToken token) {
         super(token);
-        if(token.parameters[1].length == 2) { //TODO: 'parsing' has to happen somewhere else, but is this general enough for base.d?
+        if(token.parameters[1].length == 2) {
             predec = token.parameters[1][0] == '-';
             postinc = token.parameters[1][1] == '+';
         }
@@ -969,6 +969,45 @@ class Ld : Instruction!AtMega2560State {
 
         if(postinc) {
             state.refregs["X"].value = cast(ushort)(state.refregs["X"].value + 1);
+        }
+        return 1;
+    }
+}
+
+class Ldd : Instruction!AtMega2560State {
+    bool predec, postinc;
+    uint regd;
+    string refreg;
+
+    this(in InstructionToken token) {
+        super(token);
+        if(token.parameters[1].length == 2) {
+            predec = token.parameters[1][0] == '-';
+            if (predec) {
+                refreg = token.parameters[1][1 .. $].dup;
+            }
+            postinc = token.parameters[1][1] == '+';
+            if (postinc) {
+                refreg = token.parameters[1][0 .. 1].dup;
+            }
+        } else {
+            refreg = token.parameters[1][0..$];
+        }
+
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        if(predec) {
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+        }
+
+        size_t addr = state.refregs[refreg].value;
+        // @todo: something to do with RAMPY/RAMPZ
+        state.valueRegisters[regd].value = state.memories["data"][addr];
+
+        if(postinc) {
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
         }
         return 1;
     }
