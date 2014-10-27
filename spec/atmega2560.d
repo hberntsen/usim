@@ -923,6 +923,28 @@ unittest {
     assert(state.valueRegisters[0].value == 0xab);
 }
 
+class Inc : Instruction!AtMega2560State {
+    uint reg;
+
+    this(in InstructionToken token) {
+        super(token);
+        reg = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[reg].value;
+        ubyte result = cast(ubyte)(rd + 1);
+        state.valueRegisters[reg].value = result;
+
+        state.sreg.V = rd == 0x7f;
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+
 /* Load immediate */
 class Ldi : Instruction!AtMega2560State {
     uint regd;
