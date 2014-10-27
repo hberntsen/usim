@@ -945,6 +945,35 @@ class Inc : Instruction!AtMega2560State {
     }
 }
 
+class Ld : Instruction!AtMega2560State {
+    bool predec, postinc;
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        if(token.parameters[1].length == 2) { //TODO: 'parsing' has to happen somewhere else, but is this general enough for base.d?
+            predec = token.parameters[1][0] == '-';
+            postinc = token.parameters[1][1] == '+';
+        }
+
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        if(predec) {
+            state.refregs["X"].value = cast(ushort)(state.refregs["X"].value - 1);
+        }
+
+        size_t addr = state.refregs["X"].value;
+        state.valueRegisters[regd].value = state.memories["data"][addr];
+
+        if(postinc) {
+            state.refregs["X"].value = cast(ushort)(state.refregs["X"].value + 1);
+        }
+        return 1;
+    }
+}
+
 /* Load immediate */
 class Ldi : Instruction!AtMega2560State {
     uint regd;
