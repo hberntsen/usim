@@ -1083,6 +1083,29 @@ class Lpm : Instruction!AtMega2560State {
     }
 }
 
+class Lsr : Instruction!AtMega2560State {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = cast(ubyte)(rd >> 1);
+        state.valueRegisters[regd].value = result;
+
+        state.sreg.N = false;
+        state.sreg.C = (rd & 0x01) == 1;
+        state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+
 /* Store register to I/O location */
 /* TODO, but not necessarily for the first sprint target */
 class Out : Instruction!AtMega2560State {
