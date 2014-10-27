@@ -970,7 +970,8 @@ class Ld : Instruction!AtMega2560State {
         if(postinc) {
             state.refregs["X"].value = cast(ushort)(state.refregs["X"].value + 1);
         }
-        return 1;
+        // todo: cycles can differ
+        return 2;
     }
 }
 
@@ -1009,7 +1010,8 @@ class Ldd : Instruction!AtMega2560State {
         if(postinc) {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
         }
-        return 1;
+        // todo: cycles can differ
+        return 2;
     }
 }
 
@@ -1044,6 +1046,40 @@ class Lds : Instruction!AtMega2560State {
     override cycleCount callback(AtMega2560State state) const {
       state.valueRegisters[regd].value = state.memories["data"][address];
       return 2;
+    }
+}
+
+class Lpm : Instruction!AtMega2560State {
+    uint regd;
+    bool postinc;
+
+    this(in InstructionToken token) {
+        super(token);
+        enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
+        if(token.parameters[1].length == 2) {
+            postinc = token.parameters[1][1] == '+';
+        }
+
+        regd = parseNumericRegister(token.parameters[0]);
+
+        enforce(!((regd == 30 && postinc) || (regd == 31 && postinc)),
+                "Undefined behavior");
+    }
+
+    override cycleCount callback(AtMega2560State state) const {
+        ushort z = state.refregs["Z"].value;
+        ushort offset = (z & 0x0001);
+
+        ubyte value = state.memories["program"][z + (offset == 0 ? 1 : 0)];
+
+        state.valueRegisters[regd].value = value;
+
+        if(postinc) {
+            z = cast(ushort)(z + 1);
+        }
+
+        state.refregs["Z"].value = z;
+        return 3;
     }
 }
 
