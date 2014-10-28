@@ -467,7 +467,7 @@ abstract class RelativeBranchInstruction : Instruction!AtMega2560State {
     this(in InstructionToken token) {
         super(token);
         auto relativePc = parseInt(token.parameters[0]);
-        assert(relativePc <= 63 && relativePc >= -64);
+        assert(relativePc <= 63 * 2 && relativePc >= -64 * 2);
         destAddress = address + 2 + relativePc;
     }
 
@@ -974,12 +974,21 @@ class Inc : Instruction!AtMega2560State {
 class Ld : Instruction!AtMega2560State {
     bool predec, postinc;
     uint regd;
+    string refreg;
 
     this(in InstructionToken token) {
         super(token);
         if(token.parameters[1].length == 2) {
             predec = token.parameters[1][0] == '-';
             postinc = token.parameters[1][1] == '+';
+            if (predec) {
+                refreg = token.parameters[1][1 .. 2].dup;
+            }
+            if (postinc) {
+                refreg = token.parameters[1][0 .. 1].dup;
+            }
+        } else {
+                refreg = token.parameters[1][0 .. 1].dup;
         }
 
         regd = parseNumericRegister(token.parameters[0]);
@@ -987,14 +996,14 @@ class Ld : Instruction!AtMega2560State {
 
     override cycleCount callback(AtMega2560State state) const {
         if(predec) {
-            state.refregs["X"].value = cast(ushort)(state.refregs["X"].value - 1);
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
         }
 
-        size_t addr = state.refregs["X"].value;
+        size_t addr = state.refregs[refreg].value;
         state.valueRegisters[regd].value = state.data[addr];
 
         if(postinc) {
-            state.refregs["X"].value = cast(ushort)(state.refregs["X"].value + 1);
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
         }
         // todo: cycles can differ
         return 2;
@@ -1016,7 +1025,8 @@ class Ldd : Instruction!AtMega2560State {
 
     override cycleCount callback(AtMega2560State state) const {
         size_t addr = state.refregs[refreg].value + q;
-        state.valueRegisters[regd].value = state.memories["data"][addr];
+        //stderr.writefln("addr: %x, q: %d", addr, q);
+        state.valueRegisters[regd].value = state.data[addr];
         return 2;
     }
 }
@@ -1151,7 +1161,9 @@ class St : Instruction!AtMega2560State {
       if(predec)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
-      state.data[state.refregs[refreg]] = state.valueRegisters[regr].value;
+      ushort addr = state.refregs[refreg];
+      enforce(addr < state.data.size, format("address: %x", addr));
+      state.data[addr] = state.valueRegisters[regr].value;
 
       if(postinc)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
@@ -1159,6 +1171,27 @@ class St : Instruction!AtMega2560State {
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
       return 1;
     }
+}
+
+unittest {
+    auto state = new AtMega2560State();
+    auto st = new St(new InstructionToken(0, 0, [], "st", ["Z", "r0"]));
+    state.setInstructions([st]);
+
+    state.valueRegisters[30] = 0xab;
+    state.valueRegisters[31] = 0x10;
+
+    assert(state.refregs["Z"].value == 0x10ab);
+
+    //state.refregs["Z"] = 0x10ab;
+
+    state.valueRegisters[0] = 0xdf;
+
+    state.fetchInstruction().callback(state);
+
+    writeln("state: %x", state.data[0x10ab]);
+
+    assert(state.data[0x10ab] == 0xdf);
 }
 
 /* Store direct to data space */

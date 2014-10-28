@@ -43,6 +43,14 @@ class Simulator(T) {
             } while(previousPc != machineState.programCounter);
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
+        } catch (Throwable e) {
+            stderr.writeln("Error");
+            stderr.writeln(e);
+
+            stderr.writeln(machineState.currentInstruction());
+            stderr.writeln(machineState.currentInstruction().token);
+
+            stderr.writeln(machineState.refregs);
         }
         this.simulatorState.runningTime = stopWatch.peek();
         return this.simulatorState;
