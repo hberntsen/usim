@@ -105,6 +105,10 @@ class Memory {
     size_t offset;
 
     @property size_t size() { return data.length;}
+    
+    size_t opDollar() {
+        return size + offset;
+    }
 
     this(size_t size, size_t offset =0) {
         this.offset = offset;

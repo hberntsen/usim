@@ -49,16 +49,18 @@ class Simulator(T) {
     }
 
     ulong step() {
+        writefln("\tPC (before): %x", machineState.programCounter);
         auto instr = this.machineState.fetchInstruction();
-        //writefln("Applying instruction '%s'", instr.name);
-        //writefln("\tToken: %s", instr.token);
-        //writefln("\tRefrefs (before): %s", machineState.refregs);
-        //writefln("\tRegisters (before): %s", machineState.registers);
-        //writefln("\tFlags (before): %s", machineState.sreg);
-        //writefln("\tSP (before): %s", machineState.stackPointer);
-        //write("\tApplying callback");
+        writefln("\tToken: %s", instr.token);
+        writefln("\tRefrefs (before): %s", machineState.refregs);
+        writefln("\tRegisters (before): %s", machineState.registers);
+        writefln("\tFlags (before): %s", machineState.sreg);
+        writefln("\tSP (before): %s", machineState.stackPointer);
+        writefln("\tStack (before): [%(%x, %)]",
+                machineState.data[machineState.stackPointer+1 .. $]);
+        writef("Applying instruction '%s'", instr.name);
         const ulong cycles = instr.callback(machineState);
-        //writefln(" - DONE (%d cycles)", cycles);
+        writefln(" - DONE (%d cycles)", cycles);
         //writefln("\tSP (after): %s", machineState.stackPointer);
         //writefln("\tRefrefs (after): %s", machineState.refregs);
         //writefln("\tRegisters (after): %s", machineState.registers);

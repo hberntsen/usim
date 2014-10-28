@@ -152,7 +152,8 @@ class InstructionsWrapper(T) {
             }
         }
         if (guess == -1) {
-            throw new Exception("No instruction found");
+            throw new Exception(format("No instruction found at address
+                        %d",requestedAddress));
         }
         //size_t guess = (requestedAddress-addressOffset) / averageSize;
         //if(guess >= instructions.length) { guess = instructions.length - 1;}

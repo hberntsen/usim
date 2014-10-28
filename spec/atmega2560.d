@@ -581,9 +581,12 @@ class Call : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
+        //todo: remove new and do it like hans in rcall
         ubyte[] pcBytes = new ubyte[size_t.sizeof];
         //Convert PC+2 to bytes and store it on the stack
         pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter, 0);
+        write("call callback, pcbytes:");
+        writeln(pcBytes);
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
             pcBytes[0 .. 3];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
@@ -778,6 +781,7 @@ class Eicall : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
+        //todo: remove new and do it like hans in rcall
         ubyte[] pcBytes = new ubyte[size_t.sizeof];
 
         //Convert PC+1 to bytes and store it on the stack
@@ -1193,15 +1197,15 @@ class Ret : Instruction!AtMega2560State {
         //Since we use uint for the stackpointer and the hardware's program
         //counter is only 3 bytes we need to copy the bytes first to a new
         //array and then convert it
-        ubyte[] stackPointerBytes = new ubyte[uint.sizeof];
+        ubyte[] stackProgramCounterBytes = new ubyte[size_t.sizeof];
         //Stack pointer points to next position to write, so +1 and +5 since we
         //want 3 bytes
-        stackPointerBytes[0 .. 4] = state.data[state.stackPointer +1 ..
-            state.stackPointer+5];
-        uint newPc = stackPointerBytes.peek!(uint,Endian.littleEndian);
+        stackProgramCounterBytes[0 .. 3] = state.data[state.stackPointer +1 ..
+            state.stackPointer+4];
+        uint newPc = stackProgramCounterBytes.peek!(uint,Endian.littleEndian);
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value + 3);
+        state.jump(newPc * 2);
 
-        state.stackPointer.value = cast(short)(state.stackPointer.value + 3);
-        state.programCounter = newPc;
         return 5;
     }
 }
@@ -1212,8 +1216,10 @@ class Rjmp : Instruction!AtMega2560State {
     this(in InstructionToken token) {
         super(token);
         int jumpOffset = parseInt(token.parameters[0]);
-        assert(jumpOffset <= 2000);
-        assert(-2000 <= jumpOffset);
+        // *2 since the instruction set manual specifies k in words and we use
+        // bytes
+        assert(jumpOffset <= 2000*2);
+        assert(-2000*2 <= jumpOffset);
         dest = this.address + 2 + jumpOffset;
     }
 
@@ -1493,11 +1499,12 @@ unittest {
 }
 
 class Rcall : Instruction!AtMega2560State {
-    const ushort k;
+    const size_t k;
 
     this(in InstructionToken token) {
         super(token);
-        k = cast(ushort)(parseHex(token.parameters[0]));
+        //+2 since this instruction is 2 bytes
+        k = address + 2 + cast(ushort)(parseInt(token.parameters[0]));
     }
 
     override cycleCount callback(AtMega2560State state) const {
@@ -1507,7 +1514,7 @@ class Rcall : Instruction!AtMega2560State {
             [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
-        state.relativeJump(k);
+        state.jump(k);
 
         return 4;
     }
@@ -1517,7 +1524,7 @@ unittest {
     auto state = new AtMega2560State();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
     //rcall jumps to the ret instruction
-    auto rcall = new Rcall(new InstructionToken(0,2,[],"rcall",["0x2"]));
+    auto rcall = new Rcall(new InstructionToken(0,2,[],"rcall",[".+2"]));
     auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
     auto ret = new Ret(new InstructionToken(0,6,[],"ret",[]));
     state.setInstructions([nop0,rcall,nop1,ret]);
