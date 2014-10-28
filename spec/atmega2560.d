@@ -613,7 +613,7 @@ unittest {
 
     assert(state.stackPointer.value == spInit - 3);
     //Program counter that is stored on the stack should be 3, the program counter is 1 before call is executed,
-    // then raised to a value of 3 since the call instruction takes 4 bytes 
+    // then raised to a value of 3 since the call instruction takes 4 bytes
     assert(state.programCounter == 4);
     assert(state.data[spInit-2] == 3);
 
@@ -846,7 +846,7 @@ class Elpm : Instruction!AtMega2560State {
         size_t offset = (z & 0x0001);
 
         size_t address = (z & 0x00ffff) + ((rampz & 0x00ffff) << 16);
-        ubyte value = state.memories["program"][address + (offset == 0 ? 1 : 0)];
+        ubyte value = state.program[address + (offset == 0 ? 1 : 0)];
 
         state.valueRegisters[regd] = value;
 
@@ -868,8 +868,8 @@ unittest {
     state.setInstructions([elpm, elpm2]);
     state.setIoRegisterByIo(0x3b, 0x01);
     state.refregs["Z"].value = 0x1000;
-    state.memories["program"][0x011000] = 0xaa;
-    state.memories["program"][0x011000 + 1] = 0xbb;
+    state.program[0x011000] = 0xaa;
+    state.program[0x011000 + 1] = 0xbb;
 
     state.fetchInstruction();
     elpm.callback(state);
@@ -987,7 +987,7 @@ class Ld : Instruction!AtMega2560State {
         }
 
         size_t addr = state.refregs["X"].value;
-        state.valueRegisters[regd].value = state.memories["data"][addr];
+        state.valueRegisters[regd].value = state.data[addr];
 
         if(postinc) {
             state.refregs["X"].value = cast(ushort)(state.refregs["X"].value + 1);
@@ -1027,7 +1027,7 @@ class Ldd : Instruction!AtMega2560State {
 
         size_t addr = state.refregs[refreg].value;
         // @todo: something to do with RAMPY/RAMPZ
-        state.valueRegisters[regd].value = state.memories["data"][addr];
+        state.valueRegisters[regd].value = state.data[addr];
 
         if(postinc) {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
@@ -1066,7 +1066,7 @@ class Lds : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-      state.valueRegisters[regd].value = state.memories["data"][address];
+      state.valueRegisters[regd].value = state.data[address];
       return 2;
     }
 }
@@ -1092,7 +1092,7 @@ class Lpm : Instruction!AtMega2560State {
         ushort z = state.refregs["Z"].value;
         ushort offset = (z & 0x0001);
 
-        ubyte value = state.memories["program"][z + (offset == 0 ? 1 : 0)];
+        ubyte value = state.program[z + (offset == 0 ? 1 : 0)];
 
         state.valueRegisters[regd].value = value;
 
@@ -1167,7 +1167,7 @@ class St : Instruction!AtMega2560State {
       if(predec)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
-      state.memories["data"][state.refregs[refreg]] = state.valueRegisters[regr].value;
+      state.data[state.refregs[refreg]] = state.valueRegisters[regr].value;
 
       if(postinc)
         state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
@@ -1189,7 +1189,7 @@ class Sts : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-      state.memories["data"][address] = state.valueRegisters[regr].value;
+      state.data[address] = state.valueRegisters[regr].value;
       return 2;
     }
 }
@@ -1680,7 +1680,7 @@ class Sbiw : Instruction!AtMega2560State {
         ushort result = cast(ushort)(rd - k);
         state.valueRegisters[regd + 1] = cast(ubyte)(result >>> 8);
         state.valueRegisters[regd].value = cast(ubyte)(result);
- 
+
         state.sreg.V = cast(bool)(rd & (result ^ 0x8000) & 0x8000);
         state.sreg.N = cast(bool)(result & 0x8000);
         state.sreg.Z = result == 0;
@@ -1739,7 +1739,7 @@ class Std : Instruction!AtMega2560State {
     }
 
     override cycleCount callback(AtMega2560State state) const {
-      state.memories["data"][state.refregs[refreg] + q] = state.valueRegisters[regr].value;
+      state.data[state.refregs[refreg] + q] = state.valueRegisters[regr].value;
       return 2;
     }
 }
@@ -1750,7 +1750,7 @@ unittest {
     auto std = new Std(new InstructionToken(0,0,[],"std",["Z+8", "r0"]));
     auto cycles = std.callback(state);
     assert(cycles == 2);
-    assert(state.memories["data"][0x024A] == 42);
+    assert(state.data[0x024A] == 42);
 }
 
 class Sub : Instruction!AtMega2560State {
