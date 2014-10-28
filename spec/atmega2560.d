@@ -215,9 +215,10 @@ class AtMega2560Factory : MachineFactory {
     static Instruction!AtMega2560State createInstruction(AtMega2560State)(in InstructionToken tok) {
         switch (tok.name) {
             case "add" : return new Add(tok);
+            case "adc" : return new Adc(tok);
             case "adiw": return new Adiw(tok);
             case "andi": return new Andi(tok);
-            case "and": return new Adiw(tok);
+            case "and": return new And(tok);
             case "brcc": return new Brcc(tok);
             case "brcs": return new Brcs(tok);
             case "breq": return new Breq(tok);
@@ -234,10 +235,18 @@ class AtMega2560Factory : MachineFactory {
             case "cpi": return new Cpi(tok);
             case "cpse": return new Cpse(tok);
             case "dec": return new Dec(tok);
+            case "eicall": return new Eicall(tok);
+            case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
             case "jmp": return new Jmp(tok);
+            case "in": return new In(tok);
+            case "inc": return new Inc(tok);
+            case "ld": return new Ld(tok);
+            case "ldd": return new Ldd(tok);
             case "ldi": return new Ldi(tok);
             case "lds": return new Lds(tok);
+            case "lpm": return new Lpm(tok);
+            case "lsr": return new Lsr(tok);
             case "out": return new Out(tok);
             case "st": return new St(tok);
             case "sts": return new Sts(tok);
@@ -246,10 +255,23 @@ class AtMega2560Factory : MachineFactory {
             case "rjmp": return new Rjmp(tok);
             case "mov": return new Mov(tok);
             case "movw": return new Movw(tok);
+            case "mul": return new Mul(tok);
             case "neg": return new Neg(tok);
             case "or": return new Or(tok);
             case "ori": return new Ori(tok);
+            case "pop": return new Pop(tok);
+            case "push": return new Push(tok);
+            case "rcall": return new Rcall(tok);
+            case "ror": return new Ror(tok);
+            case "sbc": return new Sbc(tok);
+            case "sbci": return new Sbci(tok);
+            case "sbiw": return new Sbiw(tok);
+            case "set": return new Set(tok);
+            case "std": return new Std(tok);
+            case "sub": return new Sub(tok);
+            case "subi": return new Subi(tok);
             case "sbrs": return new Sbrs(tok);
+            case "sbrc": return new Sbrc(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
