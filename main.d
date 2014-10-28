@@ -5,7 +5,6 @@ import std.getopt;
 
 import parser.parser;
 import spec.atmega2560;
-import spec.base;
 import machine.state;
 import simulator.simulator;
 
@@ -21,7 +20,9 @@ void main(string[] args) {
     InstructionToken[] instructions = parse(file);
     file.close();
 
-    AtMega2560State state = cast(AtMega2560State)machineFactories[machine].createState(instructions);
+    auto factory = machineFactories[machine];
+    AtMega2560State state = cast(AtMega2560State)(factory.createState(instructions));
+
     auto sim = new Simulator!AtMega2560State(state);
 
     auto simulatorState = sim.run();

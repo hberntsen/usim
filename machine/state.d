@@ -143,8 +143,15 @@ class Memory {
 
 interface MachineState {
     @property size_t programCounter();
+    @property size_t programCounter(size_t newpc);
+
     @property Register[] registers();
     @property Memory[string]  memories();
+
+    void jump(size_t address);
+    void relativeJump(in int instructionOffset);
+
+    // todo: stack operations
 }
 
 abstract class MachineFactory {

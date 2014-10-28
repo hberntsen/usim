@@ -43,7 +43,9 @@ class Simulator(T) {
             } while(previousPc != machineState.programCounter);
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
+            stopWatch.stop();
         } catch (Throwable e) {
+            stopWatch.stop();
             stderr.writeln("Error");
             stderr.writeln(e);
 
