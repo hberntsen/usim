@@ -207,13 +207,13 @@ unittest {
     ]);
 
     wrapper.relativeJump(0);
-    assert(wrapper.fetch().address == 0);;
+    assert(wrapper.fetch().address == 0);
     wrapper.relativeJump(1);
-    assert(wrapper.fetch().address == 2);;
+    assert(wrapper.fetch().address == 2);
     wrapper.relativeJump(1);
-    assert(wrapper.fetch().address == 4);;
+    assert(wrapper.fetch().address == 4);
     wrapper.relativeJump(-2);
-    assert(wrapper.fetch().address == 0);;
+    assert(wrapper.fetch().address == 0);
 
     wrapper.jump(10);
     assert(wrapper.fetch().name == "fourth");
