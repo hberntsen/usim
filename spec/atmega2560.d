@@ -998,41 +998,21 @@ class Ld : Instruction!AtMega2560State {
 }
 
 class Ldd : Instruction!AtMega2560State {
-    bool predec, postinc;
+    uint q;
     uint regd;
     string refreg;
 
     this(in InstructionToken token) {
         super(token);
-        if(token.parameters[1].length == 2) {
-            predec = token.parameters[1][0] == '-';
-            if (predec) {
-                refreg = token.parameters[1][1 .. $].dup;
-            }
-            postinc = token.parameters[1][1] == '+';
-            if (postinc) {
-                refreg = token.parameters[1][0 .. 1].dup;
-            }
-        } else {
-            refreg = token.parameters[1][0..$];
-        }
-
+        enforce(token.parameters[1][1] == '+');
+        q = parseHex(token.parameters[1][2..$]);
+        refreg = token.parameters[1][0 .. 1].dup;
         regd = parseNumericRegister(token.parameters[0]);
     }
 
     override cycleCount callback(AtMega2560State state) const {
-        if(predec) {
-            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
-        }
-
-        size_t addr = state.refregs[refreg].value;
-        // @todo: something to do with RAMPY/RAMPZ
-        state.valueRegisters[regd].value = state.data[addr];
-
-        if(postinc) {
-            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
-        }
-        // todo: cycles can differ
+        size_t addr = state.refregs[refreg].value + q;
+        state.valueRegisters[regd].value = state.memories["data"][addr];
         return 2;
     }
 }
