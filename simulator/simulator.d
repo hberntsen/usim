@@ -85,6 +85,8 @@ unittest {
     import spec.base;
     import spec.atmega2560;
     import parser.parser;
+    import spec.atmega2560;
+    import spec.avrstate;
 
     auto state = new AtMega2560State;
     auto sim = new Simulator!AtMega2560State(state);
@@ -95,7 +97,7 @@ unittest {
             ["r2", "0xAA"]);
     InstructionToken tok3 = new InstructionToken(3, 0x04, [0x02, 0xc0], "rjmp",
             [".-2"]);
-    Instruction!(AtMega2560State)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp(tok3)];
+    Instruction!(AvrState)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp(tok3)];
 
     state.setInstructions(instrs);
     auto simstate = sim.run();

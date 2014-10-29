@@ -90,7 +90,11 @@ class AvrState : MachineState {
         return programCounter();
     }
 
-    this(size_t dataSize, size_t programSize, size_t eepromSize, size_t sregOffset = 0x5f, size_t spOffset = 0x5d) {
+    this(size_t dataSize = 8*1024+512,
+            size_t programSize = 256 * 1024,
+            size_t eepromSize = 4 * 1024,
+            size_t sregOffset = 0x5f,
+            size_t spOffset = 0x5d) {
         data = new Memory(dataSize, 0);
         program = new Memory(programSize, 0);
         eeprom = new Memory(eepromSize, 0);
