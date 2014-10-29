@@ -372,18 +372,22 @@ class Andi : Instruction!AvrState {
 }
 
 abstract class RelativeBranchInstruction : Instruction!AvrState {
-    const size_t destAddress;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
         auto relativePc = parseInt(token.parameters[0]);
         assert(relativePc <= 63 * 2 && relativePc >= -64 * 2);
-        destAddress = address + 2 + relativePc;
+        dest = address + 2 + relativePc;
+    }
+
+    override void optimize(in InstructionsWrapper!AvrState iw) {
+        dest = iw.getInstructionIndex(dest);
     }
 
     override cycleCount callback(AvrState state) const {
         if(check(state)) {
-            state.jump(destAddress);
+            state.jumpIndex(dest);
             return 2;
         } else {
             return 1;
@@ -483,11 +487,15 @@ unittest {
 
 /** Long Call to a Subroutine */
 class Call : Instruction!AvrState {
-    const size_t address;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
-        address = parseHex(token.parameters[0]);
+        dest = parseHex(token.parameters[0]);
+    }
+
+    override void optimize(in InstructionsWrapper!AvrState iw) {
+        dest = iw.getInstructionIndex(dest);
     }
 
     override cycleCount callback(AvrState state) const {
@@ -499,7 +507,7 @@ class Call : Instruction!AvrState {
             pcBytes[0 .. 3];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
-        state.jump(address);
+        state.jumpIndex(dest);
 
         return 5;
     }
@@ -815,16 +823,20 @@ class Eor : Instruction!AvrState {
 }
 
 class Jmp : Instruction!AvrState {
-    const size_t address;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
-        address = parseHex(token.parameters[0]);
-        assert(address < 4*1024*1024);
+        dest = parseHex(token.parameters[0]);
+        assert(dest < 4*1024*1024);
+    }
+
+    override void optimize(in InstructionsWrapper!AvrState iw) {
+        dest = iw.getInstructionIndex(dest);
     }
 
     override cycleCount callback(AvrState state) const {
-        state.jump(address);
+        state.jumpIndex(dest);
         return 3;
     }
 }
@@ -1440,12 +1452,16 @@ unittest {
 }
 
 class Rcall : Instruction!AvrState {
-    const size_t k;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
         //+2 since this instruction is 2 bytes
-        k = address + 2 + cast(ushort)(parseInt(token.parameters[0]));
+        dest = address + 2 + cast(ushort)(parseInt(token.parameters[0]));
+    }
+
+    override void optimize(in InstructionsWrapper!AvrState iw) {
+        dest = iw.getInstructionIndex(dest);
     }
 
     override cycleCount callback(AvrState state) const {
@@ -1455,7 +1471,7 @@ class Rcall : Instruction!AvrState {
             [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
-        state.jump(k);
+        state.jumpIndex(dest);
 
         return 4;
     }
