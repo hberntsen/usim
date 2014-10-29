@@ -75,6 +75,7 @@ class AvrState : MachineState {
     protected InstructionsWrapper!AvrState instructions;
     ReferenceRegister!(ubyte)[32] valueRegisters;
     ReferenceRegister!(ubyte)[64] ioRegisters;
+    protected ReferenceRegister!ushort[string] _refregs;
 
     invariant() {
         //As specified in the ATmega2560 manual
@@ -98,6 +99,7 @@ class AvrState : MachineState {
         xreg = new ReferenceRegister!ushort("X", 26, data);
         yreg = new ReferenceRegister!ushort("Y", 28, data);
         zreg = new ReferenceRegister!ushort("Z", 30, data);
+        _refregs = ["X": xreg, "Y": yreg, "Z": zreg];
         //The stack pointer's initial value points to the end of the internal
         //SRAM: 8703
         stackPointer = new ReferenceRegister!ushort("SP",spOffset, data);
@@ -114,7 +116,7 @@ class AvrState : MachineState {
     }
 
     @property ReferenceRegister!ushort[string] refregs() {
-        return ["X": xreg, "Y": yreg, "Z": zreg];
+        return _refregs;
     }
 
     @property Memory[string] memories() {
