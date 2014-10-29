@@ -46,8 +46,13 @@ class SimpleRegister(T) : Register
 }
 
 class ReferenceRegister(T) : Register {
-    Memory raw;
-    size_t offset;
+    private ubyte[] slice2;
+
+    //TODO: somehow does not compile
+    //invariant() {
+        //The slice should always be a shared slice
+        //assert(this.slice2.capacity == 0);
+    //}
 
     override string toString() {
         return format("%(%x %)", bytes);
@@ -55,36 +60,38 @@ class ReferenceRegister(T) : Register {
 
     final {
         override @property ubyte[] bytes() {
-            return raw[offset .. offset + T.sizeof];
+            return slice2;
         };
 
         @property const(ubyte[]) bytes() const {
-            return raw[offset .. offset + T.sizeof];
-        };
-
-        override @property ubyte[] bytes(ubyte[] newValue) {
-            assert(newValue.length == T.sizeof);
-            auto slice = raw[offset .. offset + T.sizeof];
-            slice[] = newValue;
-            return slice;
+            return slice2;
         }
 
-        alias value this;
+        override @property ubyte[] bytes(ubyte[] newValue) {
+            assert(newValue.length <= slice2.length);
+            slice2[] = newValue;
+            assert(this.slice2.capacity == 0);
+            return slice2;
+        }
 
         @property T value() const {
             return peek!(T,Endian.littleEndian)(bytes);
         }
 
         @property T value(T newValue) {
-            bytes().write!(T,Endian.littleEndian)(newValue,0);
+            bytes.write!(T,Endian.littleEndian)(newValue,0);
+            assert(this.slice2.capacity == 0);
             return newValue;
         }
+
     }
+
+
+    alias value this;
 
     this(in string name, in size_t offset, Memory raw) {
         super(name);
-        this.offset = offset;
-        this.raw = raw;
+        slice2 = raw[offset .. offset + T.sizeof];
     }
 }
 
