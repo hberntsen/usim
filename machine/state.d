@@ -74,6 +74,8 @@ class ReferenceRegister(T) : Register {
             return slice2;
         }
 
+        alias value this;
+
         @property T value() const {
             return peek!(T,Endian.littleEndian)(bytes);
         }
@@ -83,11 +85,7 @@ class ReferenceRegister(T) : Register {
             assert(this.slice2.capacity == 0);
             return newValue;
         }
-
     }
-
-
-    alias value this;
 
     this(in string name, in size_t offset, Memory raw) {
         super(name);
