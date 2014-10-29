@@ -53,30 +53,32 @@ class ReferenceRegister(T) : Register {
         return format("%(%x %)", bytes);
     }
 
-    override @property ubyte[] bytes() {
-        return raw[offset .. offset + T.sizeof];
-    };
+    final {
+        override @property ubyte[] bytes() {
+            return raw[offset .. offset + T.sizeof];
+        };
 
-    @property const(ubyte[]) bytes() const {
-        return raw[offset .. offset + T.sizeof];
-    };
+        @property const(ubyte[]) bytes() const {
+            return raw[offset .. offset + T.sizeof];
+        };
 
-    override @property ubyte[] bytes(ubyte[] newValue) {
-        assert(newValue.length == T.sizeof);
-        auto slice = raw[offset .. offset + T.sizeof];
-        slice[] = newValue;
-        return slice;
-    }
+        override @property ubyte[] bytes(ubyte[] newValue) {
+            assert(newValue.length == T.sizeof);
+            auto slice = raw[offset .. offset + T.sizeof];
+            slice[] = newValue;
+            return slice;
+        }
 
-    alias value this;
+        alias value this;
 
-    @property T value() const {
-        return peek!(T,Endian.littleEndian)(bytes);
-    }
+        @property T value() const {
+            return peek!(T,Endian.littleEndian)(bytes);
+        }
 
-    @property T value(T newValue) {
-        bytes().write!(T,Endian.littleEndian)(newValue,0);
-        return newValue;
+        @property T value(T newValue) {
+            bytes().write!(T,Endian.littleEndian)(newValue,0);
+            return newValue;
+        }
     }
 
     this(in string name, in size_t offset, Memory raw) {
@@ -100,7 +102,7 @@ unittest {
     assert(stackPointer.value == 8703);
 }
 
-class Memory {
+final class Memory {
     ubyte[] data;
     size_t offset;
 
