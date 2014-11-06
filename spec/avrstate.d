@@ -711,7 +711,7 @@ class Eicall : Instruction!AvrState {
 
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
-        size_t z = cast(size_t)(state.refregs["Z"]);
+        size_t z = cast(size_t)(state.zreg);
         size_t eind = state.getIoRegisterByIo(0x3c);
 
         size_t address = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
@@ -731,7 +731,7 @@ unittest {
     auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
     auto ret = new Ret(new InstructionToken(0,0x211001,[],"ret",[]));
     state.setInstructions([nop0,eicall,nop1,ret]);
-    state.refregs["Z"].value = cast(ushort)(0x1001);
+    state.zreg.value = cast(ushort)(0x1001);
     state.setIoRegisterByIo(0x3c, cast(ubyte)(0x21));
 
     ushort spInit = state.stackPointer.value;
@@ -764,7 +764,7 @@ class Elpm : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        size_t z = cast(size_t)(state.refregs["Z"]);
+        size_t z = cast(size_t)(state.zreg);
         size_t rampz = cast(size_t)(state.getIoRegisterByIo(0x3b));
 
         size_t offset = (z & 0x0001);
@@ -779,7 +779,7 @@ class Elpm : Instruction!AvrState {
         }
 
         state.setIoRegisterByIo(0x3b, cast(ubyte)(address >> 16));
-        state.refregs["Z"].value = cast(ushort)(address & 0x00ffff);
+        state.zreg.value = cast(ushort)(address & 0x00ffff);
         return 3;
     }
 }
@@ -791,14 +791,14 @@ unittest {
 
     state.setInstructions([elpm, elpm2]);
     state.setIoRegisterByIo(0x3b, 0x01);
-    state.refregs["Z"].value = 0x1000;
+    state.zreg.value = 0x1000;
     state.program[0x011000] = 0xaa;
     state.program[0x011000 + 1] = 0xbb;
 
     state.fetchInstruction();
     elpm.callback(state);
     assert(state.valueRegisters[0].value == 0xbb);
-    assert(state.refregs["Z"].value == 0x1001);
+    assert(state.zreg.value == 0x1001);
     state.fetchInstruction();
     elpm2.callback(state);
     assert(state.valueRegisters[1].value = 0xaa);
@@ -1007,7 +1007,7 @@ class Lpm : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        ushort z = state.refregs["Z"].value;
+        ushort z = state.zreg.value;
         ushort offset = (z & 0x0001);
 
         ubyte value = state.program[z + (offset == 0 ? 1 : 0)];
@@ -1018,7 +1018,7 @@ class Lpm : Instruction!AvrState {
             z = cast(ushort)(z + 1);
         }
 
-        state.refregs["Z"].value = z;
+        state.zreg.value = z;
         return 3;
     }
 }
@@ -1105,9 +1105,9 @@ unittest {
     state.valueRegisters[30] = 0xab;
     state.valueRegisters[31] = 0x10;
 
-    assert(state.refregs["Z"].value == 0x10ab);
+    assert(state.zreg.value == 0x10ab);
 
-    //state.refregs["Z"] = 0x10ab;
+    //state.zreg = 0x10ab;
 
     state.valueRegisters[0] = 0xdf;
 
@@ -1693,7 +1693,7 @@ class Std : Instruction!AvrState {
 }
 unittest {
     auto state = new AvrState();
-    state.refregs["Z"] = 0x0242;
+    state.zreg = 0x0242;
     state.valueRegisters[0] = 42;
     auto std = new Std(new InstructionToken(0,0,[],"std",["Z+8", "r0"]));
     auto cycles = std.callback(state);
