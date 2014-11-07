@@ -1469,8 +1469,7 @@ class Rcall : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        size_t pc = state.programCounter + 1;
-        //Convert PC+2 to bytes and store it on the stack
+        size_t pc = state.programCounter;
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
             [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
@@ -1499,7 +1498,7 @@ unittest {
 
     assert(state.stackPointer.value == spInit - 3);
     assert(state.programCounter == 3);
-    assert(state.data[spInit-2] == 3);
+    assert(state.data[spInit-2] == 2);
 }
 
 class Ror : Instruction!AvrState {
