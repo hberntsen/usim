@@ -35,7 +35,7 @@ final class Simulator(T) {
         StopWatch stopWatch;
         try {
             stopWatch.start();
-            while(step() != step()) {};
+            while(step() != step()) {}
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
             stopWatch.stop();
