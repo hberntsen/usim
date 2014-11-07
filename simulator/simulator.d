@@ -22,7 +22,7 @@ struct SimulatorState {
 }
 
 //Input: initial machine state (code is part of the machine state)
-class Simulator(T) {
+final class Simulator(T) {
     T machineState;
     SimulatorState simulatorState;
 

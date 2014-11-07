@@ -58,7 +58,7 @@ abstract class Instruction(T) {
     debug const InstructionToken token;
 }
 
-class InstructionsWrapper(T) {
+final class InstructionsWrapper(T) {
     private Instruction!T[] instructions;
     private size_t currentIndex = 0;
     private size_t nextIndex = 0;

@@ -72,20 +72,20 @@ class AvrState : MachineState {
     Sreg sreg;
     ReferenceRegister!ushort xreg, yreg, zreg;
     ReferenceRegister!ushort stackPointer;
-    protected InstructionsWrapper!AvrState instructions;
+    private InstructionsWrapper!AvrState instructions;
     ReferenceRegister!(ubyte)[32] valueRegisters;
     ReferenceRegister!(ubyte)[64] ioRegisters;
-    protected ReferenceRegister!ushort[string] _refregs;
+    private ReferenceRegister!ushort[string] _refregs;
 
     invariant() {
         //As specified in the ATmega2560 manual
         assert(stackPointer.value > 0x0200);
     }
 
-    @property size_t programCounter() {
+    @property final size_t programCounter() {
         return instructions.next.address/2;
     }
-    @property size_t programCounter(size_t newpc) {
+    @property final size_t programCounter(size_t newpc) {
         instructions.jump(newpc*2);
         return programCounter();
     }
@@ -118,94 +118,96 @@ class AvrState : MachineState {
                         cast(size_t)(i + 0x20)), i + 0x40, data);
         }
     }
+    final {
 
-    @property ReferenceRegister!ushort[string] refregs() {
-        return _refregs;
-    }
+        @property ReferenceRegister!ushort[string] refregs() {
+            return _refregs;
+        }
 
-    @property Memory[string] memories() {
-        return ["data": data, "program": program, "eeprom": eeprom];
-    }
+        @property Memory[string] memories() {
+            return ["data": data, "program": program, "eeprom": eeprom];
+        }
 
-    @property Register[] registers() {
-        return cast(Register[])valueRegisters;
-    }
+        @property Register[] registers() {
+            return cast(Register[])valueRegisters;
+        }
 
-    @property Instruction!AvrState currentInstruction() {
-        return instructions.current;
-    }
+        @property Instruction!AvrState currentInstruction() {
+            return instructions.current;
+        }
 
-    @property Instruction!AvrState nextInstruction() {
-        return instructions.next;
-    }
+        @property Instruction!AvrState nextInstruction() {
+            return instructions.next;
+        }
 
-    Instruction!AvrState fetchInstruction() {
-        return instructions.fetch();
-    }
+        Instruction!AvrState fetchInstruction() {
+            return instructions.fetch();
+        }
 
-    void setInstructions(Instruction!AvrState[] instructions) {
-        this.instructions = new InstructionsWrapper!AvrState(instructions);
-    }
+        void setInstructions(Instruction!AvrState[] instructions) {
+            this.instructions = new InstructionsWrapper!AvrState(instructions);
+        }
 
-    void jump(size_t address) {
-        instructions.jump(address);
-    }
+        void jump(size_t address) {
+            instructions.jump(address);
+        }
 
-    void jumpIndex(size_t index) {
-        instructions.jumpIndex(index);
-    }
+        void jumpIndex(size_t index) {
+            instructions.jumpIndex(index);
+        }
 
-    void relativeJump(in int instructionOffset) {
-        instructions.relativeJump(instructionOffset);
-    }
+        void relativeJump(in int instructionOffset) {
+            instructions.relativeJump(instructionOffset);
+        }
 
-    void setSregLogical(ubyte result) {
-        sreg.V = false;
-        sreg.N = cast(bool)(result & 0b10000000);
-        sreg.S = sreg.V ^ sreg.N;
-        sreg.Z = result == 0;
-    }
+        void setSregLogical(ubyte result) {
+            sreg.V = false;
+            sreg.N = cast(bool)(result & 0b10000000);
+            sreg.S = sreg.V ^ sreg.N;
+            sreg.Z = result == 0;
+        }
 
-    void setSregArithPos(ubyte a, ubyte b, ubyte c) {
-        immutable bool[6] bits = getRelevantBits(a, b, c);
-        sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
-        sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
-        sreg.N = bits[5];
-        // todo: compute S before V & N or after?
-        sreg.S = sreg.V ^ sreg.N;
-        sreg.Z = c == 0;
-        sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
-    }
-
-    void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
-        immutable bool[6] bits = getRelevantBits(a, b, c);
-        sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
-        sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
-        sreg.N = bits[5];
-        sreg.S = sreg.V ^ sreg.N;
-        if(preserveZ && c != 0)
-            sreg.Z = false;
-        else if(!preserveZ)
+        void setSregArithPos(ubyte a, ubyte b, ubyte c) {
+            immutable bool[6] bits = getRelevantBits(a, b, c);
+            sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
+            sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
+            sreg.N = bits[5];
+            // todo: compute S before V & N or after?
+            sreg.S = sreg.V ^ sreg.N;
             sreg.Z = c == 0;
-        sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
-    }
+            sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
+        }
 
-    ReferenceRegister!ubyte setIoRegisterByIo(size_t addr, ubyte value) {
-        this.ioRegisters[addr - 0x20].value = value;
-        return this.ioRegisters[addr - 0x20];
-    }
+        void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
+            immutable bool[6] bits = getRelevantBits(a, b, c);
+            sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
+            sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
+            sreg.N = bits[5];
+            sreg.S = sreg.V ^ sreg.N;
+            if(preserveZ && c != 0)
+                sreg.Z = false;
+            else if(!preserveZ)
+                sreg.Z = c == 0;
+            sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+        }
 
-    ReferenceRegister!ubyte setIoRegisterByData(size_t addr, ubyte value) {
-        this.ioRegisters[addr - 0x40].value = value;
-        return this.ioRegisters[addr - 0x40];
-    }
+        ReferenceRegister!ubyte setIoRegisterByIo(size_t addr, ubyte value) {
+            this.ioRegisters[addr - 0x20].value = value;
+            return this.ioRegisters[addr - 0x20];
+        }
 
-    ReferenceRegister!ubyte getIoRegisterByIo(size_t addr) {
-        return this.ioRegisters[addr - 0x20];
-    }
+        ReferenceRegister!ubyte setIoRegisterByData(size_t addr, ubyte value) {
+            this.ioRegisters[addr - 0x40].value = value;
+            return this.ioRegisters[addr - 0x40];
+        }
 
-    ReferenceRegister!ubyte getIoRegisterByData(size_t addr) {
-        return this.ioRegisters[addr - 0x40];
+        ReferenceRegister!ubyte getIoRegisterByIo(size_t addr) {
+            return this.ioRegisters[addr - 0x20];
+        }
+
+        ReferenceRegister!ubyte getIoRegisterByData(size_t addr) {
+            return this.ioRegisters[addr - 0x40];
+        }
     }
 
     private static bool[6] getRelevantBits(ubyte a, ubyte b, ubyte c) {
