@@ -11,7 +11,7 @@ import std.bitmanip;
 import core.bitop;
 import parser.parser : InstructionToken;
 
-class Sreg : ReferenceRegister!ubyte {
+final class Sreg : ReferenceRegister!ubyte {
     private bool getBit(uint bitNum) const {
         return cast(bool)(bytes()[0] & (1 << bitNum));
     }
