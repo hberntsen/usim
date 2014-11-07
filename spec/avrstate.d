@@ -55,7 +55,7 @@ final class Sreg : ReferenceRegister!ubyte {
     @property bool C(bool newvalue) { return setBit(0,newvalue);}
 
     this(in size_t offset,Memory raw) {super("SREG",offset,raw);}
-}
+} 
 unittest {
     Memory mem = new Memory(1,0);
     Sreg sreg = new Sreg(0,mem);
@@ -167,7 +167,7 @@ class AvrState : MachineState {
     }
 
     void setSregArithPos(ubyte a, ubyte b, ubyte c) {
-        bool[] bits = getRelevantBits(a, b, c);
+        immutable bool[6] bits = getRelevantBits(a, b, c);
         sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
         sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
         sreg.N = bits[5];
@@ -178,7 +178,7 @@ class AvrState : MachineState {
     }
 
     void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
-        bool[] bits = getRelevantBits(a, b, c);
+        immutable bool[6] bits = getRelevantBits(a, b, c);
         sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
         sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
         sreg.N = bits[5];
@@ -208,7 +208,7 @@ class AvrState : MachineState {
         return this.ioRegisters[addr - 0x40];
     }
 
-    private static bool[] getRelevantBits(ubyte a, ubyte b, ubyte c) {
+    private static bool[6] getRelevantBits(ubyte a, ubyte b, ubyte c) {
         return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b10000000),
                cast(bool)(b & 0b00001000), cast(bool)(b & 0b10000000),
                cast(bool)(c & 0b00001000), cast(bool)(c & 0b10000000)];
