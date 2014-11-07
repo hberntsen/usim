@@ -54,8 +54,12 @@ final class Sreg : ReferenceRegister!ubyte {
     @property bool C() const { return getBit(0); }
     @property bool C(bool newvalue) { return setBit(0,newvalue);}
 
+    public void setAll(bool C, bool Z, bool N, bool V, bool S, bool H, bool T, bool I) {
+        this.value = C | (Z << 1) | (N << 2) | (V << 3) | (S << 4) | (H << 5) | (T << 6) | (I << 7);
+    }
+
     this(in size_t offset,Memory raw) {super("SREG",offset,raw);}
-} 
+}
 unittest {
     Memory mem = new Memory(1,0);
     Sreg sreg = new Sreg(0,mem);
@@ -63,6 +67,9 @@ unittest {
     sreg.Z = true;
     assert(sreg.Z = true);
     assert(mem[0] == 0b00000010);
+
+    sreg.setAll(false, true, false,true,false,false,false,false);
+    assert(mem[0] == 0b00001010);
 }
 
 class AvrState : MachineState {
@@ -169,26 +176,30 @@ class AvrState : MachineState {
 
         void setSregArithPos(ubyte a, ubyte b, ubyte c) {
             immutable bool[6] bits = getRelevantBits(a, b, c);
-            sreg.H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
-            sreg.V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
-            sreg.N = bits[5];
+            bool H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
+            bool V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
+            bool N = bits[5];
             // todo: compute S before V & N or after?
-            sreg.S = sreg.V ^ sreg.N;
-            sreg.Z = c == 0;
-            sreg.C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
+            bool S = sreg.V ^ sreg.N;
+            bool Z = c == 0;
+            bool C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
+            sreg.setAll(C,Z,N,V,S,H,sreg.T,sreg.I);
         }
 
         void setSregArithNeg(ubyte a, ubyte b, ubyte c, bool preserveZ = false) {
             immutable bool[6] bits = getRelevantBits(a, b, c);
-            sreg.H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
-            sreg.V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
-            sreg.N = bits[5];
-            sreg.S = sreg.V ^ sreg.N;
+            bool H = !bits[0] && bits[2] || bits[2] && bits[4] || bits[4] && !bits[0];
+            bool V = bits[1] && !bits[3] && !bits[5] || !bits[1] && bits[3] && bits[5];
+            bool N = bits[5];
+            bool S = V ^ N;
+            bool Z = sreg.Z;
             if(preserveZ && c != 0)
-                sreg.Z = false;
+                Z = false;
             else if(!preserveZ)
-                sreg.Z = c == 0;
-            sreg.C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+                Z = c == 0;
+            bool C = !bits[1] && bits[3] || bits[3] && bits[5] || bits[5] && !bits[1];
+
+            sreg.setAll(C,Z,N,V,S,H,sreg.T,sreg.I);
         }
 
         ReferenceRegister!ubyte setIoRegisterByIo(size_t addr, ubyte value) {
