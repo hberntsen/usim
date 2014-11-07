@@ -77,12 +77,11 @@ class ReferenceRegister(T) : Register {
         alias value this;
 
         @property T value() const {
-            return peek!(T,Endian.littleEndian)(bytes);
+            return *cast(T*)&slice2[0];
         }
 
         @property T value(T newValue) {
-            bytes.write!(T,Endian.littleEndian)(newValue,0);
-            assert(this.slice2.capacity == 0);
+            *cast(T*)&slice2[0] = newValue;
             return newValue;
         }
     }
