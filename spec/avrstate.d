@@ -503,12 +503,11 @@ class Call : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        //todo: remove new and do it like hans in rcall
-        ubyte[] pcBytes = new ubyte[size_t.sizeof];
-        //Convert PC+2 to bytes and store it on the stack
-        pcBytes.write!(size_t,Endian.littleEndian)(state.programCounter, 0);
+        //Program counter points to next instruction, we want that address on
+        //the stack
+        size_t pc = state.programCounter;
         state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
-            pcBytes[0 .. 3];
+            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
         state.jumpIndex(dest);
