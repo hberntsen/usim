@@ -93,13 +93,15 @@ class InstructionsWrapper(T) {
 
     private static size_t averageInstructionSize(in Instruction!T[] instructions)
     out(result) {
-        // @TODO doesn't work on edge case of 1 instruction
-        //assert(instructions.length == 0 && result == 0);
-        //assert(instructions.length > 0 && result > 0);
+        if(instructions.length == 0) {
+            assert(result == 0);
+        } else {
+            assert(result > 0 && result <= instructions.length);
+        }
     }
     body {
-        if(instructions.length == 0) {
-            return 0;
+        if(instructions.length <= 1) {
+            return instructions.length;
         }
         size_t average = 0;
         size_t previousAddr = 0;
@@ -144,44 +146,35 @@ class InstructionsWrapper(T) {
       */
     size_t getInstructionIndex(size_t requestedAddress) const {
         assert(instructions.length > 0);
-        size_t guess  = -1;
-        foreach (i, instr; instructions) {
-            if (instr.address == requestedAddress) {
-                guess = i;
-                break;
+
+        size_t guess = (requestedAddress-addressOffset) / averageSize;
+        if(guess >= instructions.length) {
+            guess = instructions.length - 1;
+        }
+        Direction d = Direction.UNSET;
+        Direction prev = Direction.UNSET;
+        while(instructions[guess].address != requestedAddress) {
+            prev = d;
+            if(instructions[guess].address > requestedAddress) {
+                enforce(guess > 0,"Instruction not found(underflow in search)");
+                guess--;
+                d = Direction.DOWN;
+            } else if(instructions[guess].address < requestedAddress) {
+                enforce(guess < instructions.length-1,"Instruction not
+                        found(overflow in search)");
+                guess++;
+                d = Direction.UP;
             }
+            enforce(d == prev || prev == Direction.UNSET,
+                format("No instruction at specified address: %x", requestedAddress));
         }
-        if (guess == -1) {
-            throw new Exception(format("No instruction found at address
-                        %d",requestedAddress));
-        }
-        //size_t guess = (requestedAddress-addressOffset) / averageSize;
-        //if(guess >= instructions.length) { guess = instructions.length - 1;}
-        //Direction d = Direction.UNSET;
-        //Direction p = Direction.UNSET;
-        //while(instructions[guess].address != requestedAddress) {
-            //p = d;
-            //if(instructions[guess].address > requestedAddress) {
-                //enforce(guess > 0,"Instruction not found(underflow in search)");
-                //guess--;
-                //d = Direction.DOWN;
-            //} else if(instructions[guess].address < requestedAddress) {
-                //enforce(guess < instructions.length-1,"Instruction not
-                        //found(overflow in search)");
-                //guess++;
-                //d = Direction.UP;
-            //}
-            //enforce(d == p || p == Direction.UNSET,
-                    //format("No instruction at specified address: %x",
-                        //requestedAddress));
-        //}
         return guess;
     }
 
     void jump(size_t address) {
         nextIndex = getInstructionIndex(address);
     }
-    
+
     void jumpIndex(size_t index) {
         nextIndex = index;
     }
@@ -224,4 +217,10 @@ unittest {
         exception = true;
     }
     assert(exception);
+
+    //Test with 1 instruction
+    auto instr = new TestInstruction(0,"first");
+    wrapper = new InstructionsWrapper!int([instr]);
+    wrapper.jump(0);
+    assert(wrapper.next() == instr);
 }
