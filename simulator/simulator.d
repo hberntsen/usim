@@ -33,14 +33,9 @@ final class Simulator(T) {
 
     public SimulatorState run() {
         StopWatch stopWatch;
-        size_t previousPc;
         try {
             stopWatch.start();
-            step();
-            do {
-                previousPc = machineState.programCounter;
-                step();
-            } while(previousPc != machineState.programCounter);
+            while(step() != step()) {};
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
             stopWatch.stop();
@@ -52,32 +47,32 @@ final class Simulator(T) {
             stderr.writeln(machineState.currentInstruction());
             debug stderr.writeln(machineState.currentInstruction().token);
 
-            stderr.writeln(machineState.refregs);
+            //stderr.writeln(machineState.refregs);
         }
         this.simulatorState.runningTime = stopWatch.peek();
         return this.simulatorState;
     }
 
-    ulong step() {
-        writefln("\tPC (before): %x", machineState.programCounter);
+    size_t step() {
+        //writefln("\tPC (before): %x", machineState.programCounter);
         auto instr = this.machineState.fetchInstruction();
-        writefln("\tToken: %s", instr.token);
-        writefln("\tRefrefs (before): %s", machineState.refregs);
-        writefln("\tRegisters (before): %s", machineState.registers);
-        writefln("\tFlags (before): %s", machineState.sreg);
-        writefln("\tSP (before): %s", machineState.stackPointer);
-        writefln("\tStack (before): [%(%x, %)]",
-                machineState.data[machineState.stackPointer+1 .. $]);
-        writef("Applying instruction '%s'", instr.name);
+        //writefln("\tToken: %s", instr.token);
+        //writefln("\tRefrefs (before): %s", machineState.refregs);
+        //writefln("\tRegisters (before): %s", machineState.registers);
+        //writefln("\tFlags (before): %s", machineState.sreg);
+        //writefln("\tSP (before): %s", machineState.stackPointer);
+        //writefln("\tStack (before): [%(%x, %)]",
+                //machineState.data[machineState.stackPointer+1 .. $]);
+        //writef("Applying instruction '%s'", instr.name);
         const ulong cycles = instr.callback(machineState);
-        writefln(" - DONE (%d cycles)", cycles);
+        //writefln(" - DONE (%d cycles)", cycles);
         //writefln("\tSP (after): %s", machineState.stackPointer);
         //writefln("\tRefrefs (after): %s", machineState.refregs);
         //writefln("\tRegisters (after): %s", machineState.registers);
         //writefln("\tFlags (after): %s", machineState.sreg);
 
         this.simulatorState.cycles += cycles;
-        return cycles;
+        return instr.address;
     }
 }
 
@@ -101,7 +96,7 @@ unittest {
 
     state.setInstructions(instrs);
     auto simstate = sim.run();
-    assert(simstate.cycles==4);
+    assert(simstate.cycles==6);
     assert(state.registers[1].bytes[0] == 0xff);
     assert(state.registers[2].bytes[0] == 0xaa);
 }
