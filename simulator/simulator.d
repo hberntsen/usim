@@ -50,7 +50,7 @@ class Simulator(T) {
             stderr.writeln(e);
 
             stderr.writeln(machineState.currentInstruction());
-            stderr.writeln(machineState.currentInstruction().token);
+            debug stderr.writeln(machineState.currentInstruction().token);
 
             stderr.writeln(machineState.refregs);
         }

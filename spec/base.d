@@ -22,7 +22,7 @@ abstract class Instruction(T) {
         this.address = token.address;
         this.lineNumber = token.lineNumber;
         this.name = token.name;
-        this.token = token;
+        debug this.token = token;
     }
 
     public void optimize(in InstructionsWrapper!T instructions){}
@@ -55,7 +55,7 @@ abstract class Instruction(T) {
     string name; //e.g. ADDI
     size_t address; //absolute address of instruction in memory
     size_t lineNumber;
-    const InstructionToken token;
+    debug const InstructionToken token;
 }
 
 class InstructionsWrapper(T) {
