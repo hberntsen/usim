@@ -96,7 +96,7 @@ final class InstructionsWrapper(T) {
         if(instructions.length == 0) {
             assert(result == 0);
         } else {
-            assert(result > 0 && result <= instructions.length);
+            assert(result > 0);
         }
     }
     body {
