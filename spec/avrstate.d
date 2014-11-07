@@ -1150,15 +1150,10 @@ class Ret : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        //Since we use uint for the stackpointer and the hardware's program
-        //counter is only 3 bytes we need to copy the bytes first to a new
-        //array and then convert it
-        ubyte[] stackProgramCounterBytes = new ubyte[size_t.sizeof];
-        //Stack pointer points to next position to write, so +1 and +5 since we
-        //want 3 bytes
-        stackProgramCounterBytes[0 .. 3] = state.data[state.stackPointer +1 ..
-            state.stackPointer+4];
-        uint newPc = stackProgramCounterBytes.peek!(uint,Endian.littleEndian);
+        uint newPc = state.data[state.stackPointer + 1] +
+            (state.data[state.stackPointer + 2] << 8)+
+            (state.data[state.stackPointer + 3] << 16);
+
         state.stackPointer.value = cast(ushort)(state.stackPointer.value + 3);
         state.jump(newPc * 2);
 
