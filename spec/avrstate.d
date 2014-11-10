@@ -478,7 +478,7 @@ class Brcc : RelativeBranchInstruction {
     }
 
     override bool check(AvrState state) const {
-        return state.sreg.C;
+        return !state.sreg.C;
     }
 }
 
@@ -488,7 +488,7 @@ class Brcs : RelativeBranchInstruction {
     }
 
     override bool check(AvrState state) const {
-        return !state.sreg.C;
+        return state.sreg.C;
     }
 }
 
