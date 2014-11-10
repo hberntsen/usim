@@ -293,7 +293,7 @@ unittest {
 
     adc2.callback(state);
     assert(state.sreg.C == false);
-    assert(state.valueRegisters[3].value = 0x11);
+    assert(state.valueRegisters[3].value == 0x11);
 }
 
 class Adiw : Instruction!AvrState {
