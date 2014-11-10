@@ -524,6 +524,22 @@ unittest {
     assert(state.fetchInstruction().address == 2);
 }
 
+class Bst : Instruction!AvrState {
+    uint regd;
+    uint b;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        b = parseInt(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.T = cast(bool)(state.valueRegisters[regd].value & (1 << b));
+        return 1;
+    }
+}
+
 /** Long Call to a Subroutine */
 class Call : Instruction!AvrState {
     size_t dest;
@@ -1916,6 +1932,7 @@ abstract class AvrFactory : MachineFactory {
             case "brne": return new Brne(tok);
             case "brtc": return new Brtc(tok);
             case "brlt": return new Brlt(tok);
+            case "bst": return new Bst(tok);
             case "call": return new Call(tok);
             case "cli": return new Cli(tok);
             case "clt": return new Clt(tok);
