@@ -388,6 +388,28 @@ class Andi : Instruction!AvrState {
     }
 }
 
+class Asr : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.C = cast(bool)(state.valueRegisters[regd].value & 0x01);
+
+        state.valueRegisters[regd].value = (state.valueRegisters[regd].value >> 1) | (state.valueRegisters[regd].value & 0x80);
+
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.N = cast(bool)(state.valueRegisters[regd].value & 0x80);
+        state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.Z = state.valueRegisters[regd].value == 0;
+
+        return 1;
+    }
+}
+
 abstract class RelativeBranchInstruction : Instruction!AvrState {
     size_t dest;
 
@@ -1886,6 +1908,7 @@ abstract class AvrFactory : MachineFactory {
             case "adiw": return new Adiw(tok);
             case "andi": return new Andi(tok);
             case "and": return new And(tok);
+            case "asr": return new Asr(tok);
             case "brcc": return new Brcc(tok);
             case "brcs": return new Brcs(tok);
             case "breq": return new Breq(tok);
