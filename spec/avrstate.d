@@ -562,6 +562,15 @@ class Brlt : RelativeBranchInstruction {
     }
 }
 
+class Brmi : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AvrState state) const {
+        return state.sreg.N;
+    }
+}
 
 class Brne : RelativeBranchInstruction {
     this(in InstructionToken token) {
@@ -569,6 +578,16 @@ class Brne : RelativeBranchInstruction {
     }
     override bool check(AvrState state) const {
         return !state.sreg.Z;
+    }
+}
+
+class Brpl : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override bool check(AvrState state) const {
+        return !state.sreg.N;
     }
 }
 
@@ -2037,10 +2056,12 @@ abstract class AvrFactory : MachineFactory {
             case "brhs": return new Brhs(tok);
             case "bric": return new Bric(tok);
             case "bris": return new Bris(tok);
+            case "brlt": return new Brlt(tok);
+            case "brmi": return new Brmi(tok);
             case "brne": return new Brne(tok);
+            case "brpl": return new Brpl(tok);
             case "brtc": return new Brtc(tok);
             case "brts": return new Brts(tok);
-            case "brlt": return new Brlt(tok);
             case "brvc": return new Brvc(tok);
             case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
