@@ -1273,11 +1273,20 @@ class Lsr : Instruction!AvrState {
 }
 
 /* Store register to I/O location */
-/* TODO, but not necessarily for the first sprint target */
 class Out : Instruction!AvrState {
-    this(in InstructionToken token) { super(token); }
+    uint regr;
+    size_t ioAddr;
 
-    override cycleCount callback(AvrState state) const { return 1; }
+    this(in InstructionToken token) {
+        super(token);
+        ioAddr = parseHex(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.getIoRegisterByIo(ioAddr).value = state.valueRegisters[regr].value;
+        return 1;
+    }
 }
 
 /* Store indirect from register to data space using index */
