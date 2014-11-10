@@ -2085,20 +2085,36 @@ abstract class SkipInstruction :Instruction!AvrState {
     }
 }
 
-/** SBRS - Skip if Bit in Register is Set */
-class Sbrs : SkipInstruction {
-    uint register;
+class Sbic : SkipInstruction {
+    size_t address;
     int bit;
 
     this(in InstructionToken token) {
         super(token);
-        register = parseNumericRegister(token.parameters[0]);
+        address = parseHex(token.parameters[0]);
         bit = parseInt(token.parameters[1]);
         assert(0 <= bit && bit <= 7);
     }
 
     override bool shouldSkip(AvrState state) const {
-        size_t regValue = state.valueRegisters[register].value;
+        size_t regValue = state.getIoRegisterByIo(address).value;
+        return bt(&regValue,bit) == 0;
+    }
+}
+
+class Sbis : SkipInstruction {
+    size_t address;
+    int bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        address = parseHex(token.parameters[0]);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override bool shouldSkip(AvrState state) const {
+        size_t regValue = state.getIoRegisterByIo(address).value;
         return bt(&regValue,bit) > 0;
     }
 }
@@ -2117,6 +2133,24 @@ class Sbrc : SkipInstruction {
     override bool shouldSkip(AvrState state) const {
         size_t regValue = state.valueRegisters[register].value;
         return bt(&regValue,bit) == 0;
+    }
+}
+
+/** SBRS - Skip if Bit in Register is Set */
+class Sbrs : SkipInstruction {
+    uint register;
+    int bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        register = parseNumericRegister(token.parameters[0]);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override bool shouldSkip(AvrState state) const {
+        size_t regValue = state.valueRegisters[register].value;
+        return bt(&regValue,bit) > 0;
     }
 }
 
@@ -2248,8 +2282,10 @@ abstract class AvrFactory : MachineFactory {
             case "std": return new Std(tok);
             case "sub": return new Sub(tok);
             case "subi": return new Subi(tok);
-            case "sbrs": return new Sbrs(tok);
+            case "sbic": return new Sbic(tok);
+            case "sbis": return new Sbis(tok);
             case "sbrc": return new Sbrc(tok);
+            case "sbrs": return new Sbrs(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
