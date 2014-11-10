@@ -729,6 +729,15 @@ class Clc : Instruction!AvrState {
     }
 }
 
+class Clh : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.H = false;
+        return 1;
+    }
+}
+
 // Global interrupt disable
 class Cli : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
@@ -1874,6 +1883,15 @@ class Sec : Instruction!AvrState {
     }
 }
 
+class Seh : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.H = true;
+        return 1;
+    }
+}
+
 class Sei : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -2166,6 +2184,7 @@ abstract class AvrFactory : MachineFactory {
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
             case "clc": return new Clc(tok);
+            case "clh": return new Clh(tok);
             case "cli": return new Cli(tok);
             case "cln": return new Cln(tok);
             case "cls": return new Cls(tok);
@@ -2210,6 +2229,7 @@ abstract class AvrFactory : MachineFactory {
             case "sbci": return new Sbci(tok);
             case "sbiw": return new Sbiw(tok);
             case "sec": return new Sec(tok);
+            case "seh": return new Seh(tok);
             case "sei": return new Sei(tok);
             case "sen": return new Sen(tok);
             case "ses": return new Ses(tok);
