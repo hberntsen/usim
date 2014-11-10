@@ -1856,6 +1856,15 @@ class Sec : Instruction!AvrState {
     }
 }
 
+class Sei : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.I = true;
+        return 1;
+    }
+}
+
 class Sen : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -2163,6 +2172,7 @@ abstract class AvrFactory : MachineFactory {
             case "sbci": return new Sbci(tok);
             case "sbiw": return new Sbiw(tok);
             case "sec": return new Sec(tok);
+            case "sei": return new Sei(tok);
             case "sen": return new Sen(tok);
             case "set": return new Set(tok);
             case "sez": return new Sez(tok);
