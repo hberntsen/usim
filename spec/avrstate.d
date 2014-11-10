@@ -410,6 +410,42 @@ class Asr : Instruction!AvrState {
     }
 }
 
+class Bld : Instruction!AvrState {
+    uint regd;
+    uint b;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        b = parseInt(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.valueRegisters[regd].value = state.valueRegisters[regd].value & cast(ubyte)~(cast(ubyte)1 << b);
+        state.valueRegisters[regd].value = state.valueRegisters[regd].value | cast(ubyte)(cast(ubyte)state.sreg.T << b);
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AvrState();
+    state.valueRegisters[0].value = 0xAA;
+    state.valueRegisters[1].value = 0x55;
+    auto bst = new Bst(new InstructionToken(1,0,[],"bst",["r0","2"]));
+    auto bld = new Bld(new InstructionToken(2,2,[],"bld",["r1","2"]));
+    auto bst2 = new Bst(new InstructionToken(3,4,[],"bst",["r0","3"]));
+    auto bld2 = new Bld(new InstructionToken(4,6,[],"bld",["r1","3"]));
+    state.setInstructions([bst,bld,bst2,bld2]);
+    bst.callback(state);
+    assert(!state.sreg.T);
+    bld.callback(state);
+    assert(state.valueRegisters[1].value == 0x51);
+    bst2.callback(state);
+    assert(state.sreg.T);
+    bld2.callback(state);
+    assert(state.valueRegisters[1].value == 0x59);
+}
+
 abstract class RelativeBranchInstruction : Instruction!AvrState {
     size_t dest;
 
@@ -1925,6 +1961,7 @@ abstract class AvrFactory : MachineFactory {
             case "andi": return new Andi(tok);
             case "and": return new And(tok);
             case "asr": return new Asr(tok);
+            case "bld": return new Bld(tok);
             case "brcc": return new Brcc(tok);
             case "brcs": return new Brcs(tok);
             case "breq": return new Breq(tok);
