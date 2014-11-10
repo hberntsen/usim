@@ -16,7 +16,14 @@ void main(string[] args) {
             "file", &filename,
             "nostats", &nostats);
 
-    File file = File(filename, "r");
+    File file;
+    try {
+        file = File(filename, "r");
+    }
+    catch {
+        stderr.writeln("File ", filename, " could not be read");
+        return;
+    }
     InstructionToken[] instructions = parse(file);
     file.close();
 
