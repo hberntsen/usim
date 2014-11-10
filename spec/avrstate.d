@@ -972,6 +972,16 @@ unittest {
     assert(state.data[spInit-2] == 2);
 }
 
+class Eijmp : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        size_t eind = cast(size_t)state.getIoRegisterByIo(0x3c) << 16; //assumes size_t >= 24
+        state.jumpIndex(eind | state.zreg);
+        return 2;
+    }
+}
+
 class Elpm : Instruction!AvrState {
     uint regd;
     bool postinc;
@@ -2241,6 +2251,7 @@ abstract class AvrFactory : MachineFactory {
             case "cpse": return new Cpse(tok);
             case "dec": return new Dec(tok);
             case "eicall": return new Eicall(tok);
+            case "eijmp": return new Eijmp(tok);
             case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
             case "jmp": return new Jmp(tok);
