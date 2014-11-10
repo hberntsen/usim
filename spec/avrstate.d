@@ -570,6 +570,24 @@ class Brts : RelativeBranchInstruction {
     }
 }
 
+class Brvc : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+    override bool check(AvrState state) const {
+        return !state.sreg.V;
+    }
+}
+
+class Brvs : RelativeBranchInstruction {
+    this(in InstructionToken token) {
+        super(token);
+    }
+    override bool check(AvrState state) const {
+        return state.sreg.V;
+    }
+}
+
 unittest {
     auto state = new AvrState();
     state.sreg.Z = false;
@@ -2001,6 +2019,8 @@ abstract class AvrFactory : MachineFactory {
             case "brtc": return new Brtc(tok);
             case "brts": return new Brts(tok);
             case "brlt": return new Brlt(tok);
+            case "brvc": return new Brvc(tok);
+            case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
             case "cli": return new Cli(tok);
