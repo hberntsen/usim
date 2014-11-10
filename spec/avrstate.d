@@ -720,6 +720,15 @@ unittest {
     assert(state.stackPointer.value == spInit);
 }
 
+class Clc : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.C = false;
+        return 1;
+    }
+}
+
 // Global interrupt disable
 class Cli : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
@@ -1820,13 +1829,22 @@ unittest {
     assert(!state.sreg.S);
 }
 
+class Sec : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.C = true;
+        return 1;
+    }
+}
+
 class Set : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
     }
 
     override cycleCount callback(AvrState state) const {
-        state.sreg.T = 1;
+        state.sreg.T = true;
         return 1;
     }
 }
@@ -2066,6 +2084,7 @@ abstract class AvrFactory : MachineFactory {
             case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
+            case "clc": return new Clc(tok);
             case "cli": return new Cli(tok);
             case "clt": return new Clt(tok);
             case "com": return new Com(tok);
@@ -2105,6 +2124,7 @@ abstract class AvrFactory : MachineFactory {
             case "sbc": return new Sbc(tok);
             case "sbci": return new Sbci(tok);
             case "sbiw": return new Sbiw(tok);
+            case "sec": return new Sec(tok);
             case "set": return new Set(tok);
             case "std": return new Std(tok);
             case "sub": return new Sub(tok);
