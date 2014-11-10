@@ -748,6 +748,15 @@ class Cln : Instruction!AvrState {
     }
 }
 
+class Cls : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.S = false;
+        return 1;
+    }
+}
+
 class Clt : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
@@ -1874,6 +1883,15 @@ class Sen : Instruction!AvrState {
     }
 }
 
+class Ses : Instruction!AvrState {
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.S = true;
+        return 1;
+    }
+}
+
 class Set : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
@@ -2132,6 +2150,7 @@ abstract class AvrFactory : MachineFactory {
             case "clc": return new Clc(tok);
             case "cli": return new Cli(tok);
             case "cln": return new Cln(tok);
+            case "cls": return new Cls(tok);
             case "clt": return new Clt(tok);
             case "clz": return new Clz(tok);
             case "com": return new Com(tok);
@@ -2174,6 +2193,7 @@ abstract class AvrFactory : MachineFactory {
             case "sec": return new Sec(tok);
             case "sei": return new Sei(tok);
             case "sen": return new Sen(tok);
+            case "ses": return new Ses(tok);
             case "set": return new Set(tok);
             case "sez": return new Sez(tok);
             case "std": return new Std(tok);
