@@ -308,7 +308,7 @@ class Adiw : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         uint rdlow = state.valueRegisters[dest].value;
-        uint rdhigh = cast(uint)(state.valueRegisters[dest + 1].value) << 7;
+        uint rdhigh = cast(uint)(state.valueRegisters[dest + 1].value) << 8;
 
         uint rd = rdlow + rdhigh;
         uint result = rd + k;
@@ -334,6 +334,20 @@ class Adiw : Instruction!AvrState {
     }
 }
 
+unittest {
+    auto state = new AvrState();
+    auto adiw = new Adiw(new InstructionToken(0,0,[],"adiw",["r24", "0x01"]));
+
+    state.setInstructions([adiw]);
+
+    state.valueRegisters[24] = 0x5d;
+    state.valueRegisters[25] = 0x01;
+
+    adiw.callback(state);
+    assert(state.valueRegisters[24].value == 0x5e);
+    assert(state.valueRegisters[25].value == 0x01);
+    assert(state.sreg.C == false);
+}
 unittest {
     auto state = new AvrState();
     auto adiw = new Adiw(new InstructionToken(0,0,[],"adiw",["r30", "0x01"]));
