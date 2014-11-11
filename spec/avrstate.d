@@ -221,8 +221,10 @@ class AvrState : MachineState {
         }
     }
 
-    private static bool[6] getRelevantBits(uint a, uint b, uint c) {
-        return cast(bool[])[bt(&a, 3), bt(&a, 7), bt(&b, 3), bt(&b, 7), bt(&c, 3), bt(&c, 7)];
+    private static bool[6] getRelevantBits(ubyte a, ubyte b, ubyte c) {
+        return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b10000000),
+               cast(bool)(b & 0b00001000), cast(bool)(b & 0b10000000),
+               cast(bool)(c & 0b00001000), cast(bool)(c & 0b10000000)];
     }
 }
 
