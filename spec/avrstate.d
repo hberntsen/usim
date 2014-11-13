@@ -733,6 +733,40 @@ unittest {
     assert(state.stackPointer.value == spInit);
 }
 
+class Cbr : Instruction!AvrState {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte result = state.valueRegisters[regd].value & ~k;
+        state.valueRegisters[regd].value = result;
+        state.sreg.V = false;
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AvrState();
+    auto cbr = new Cbr(new InstructionToken(0, 0, [], "cbr", ["r0","0x0e"]));
+    auto sbr = new Sbr(new InstructionToken(0, 2, [], "sbr", ["r0","0x31"]));
+    state.setInstructions([cbr, sbr]);
+
+    state.valueRegisters[0].value = 0xaa;
+    cbr.callback(state);
+    assert(state.valueRegisters[0].value == 0xa0);
+    sbr.callback(state);
+    assert(state.valueRegisters[0].value == 0xb1);
+}
+
 class Clc : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -1906,6 +1940,27 @@ unittest {
     assert(!state.sreg.S);
 }
 
+class Sbr : Instruction!AvrState {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte result = state.valueRegisters[regd].value | k;
+        state.valueRegisters[regd].value = result;
+        state.sreg.V = false;
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+        return 1;
+    }
+}
+
 class Sec : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -2224,11 +2279,11 @@ unittest {
 abstract class AvrFactory : MachineFactory {
     static Instruction!AvrState createInstruction(AvrState)(in InstructionToken tok) {
         switch (tok.name) {
-            case "add" : return new Add(tok);
             case "adc" : return new Adc(tok);
+            case "add" : return new Add(tok);
             case "adiw": return new Adiw(tok);
-            case "andi": return new Andi(tok);
             case "and": return new And(tok);
+            case "andi": return new Andi(tok);
             case "asr": return new Asr(tok);
             case "bld": return new Bld(tok);
             case "brcc": return new Brcc(tok);
@@ -2249,6 +2304,7 @@ abstract class AvrFactory : MachineFactory {
             case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
+            case "cbr": return new Cbr(tok);
             case "clc": return new Clc(tok);
             case "clh": return new Clh(tok);
             case "cli": return new Cli(tok);
@@ -2267,34 +2323,37 @@ abstract class AvrFactory : MachineFactory {
             case "eijmp": return new Eijmp(tok);
             case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
-            case "jmp": return new Jmp(tok);
             case "in": return new In(tok);
             case "inc": return new Inc(tok);
+            case "jmp": return new Jmp(tok);
             case "ld": return new Ld(tok);
             case "ldd": return new Ldd(tok);
             case "ldi": return new Ldi(tok);
             case "lds": return new Lds(tok);
             case "lpm": return new Lpm(tok);
             case "lsr": return new Lsr(tok);
-            case "out": return new Out(tok);
-            case "st": return new St(tok);
-            case "sts": return new Sts(tok);
-            case "nop": return new Nop(tok);
-            case "ret": return new Ret(tok);
-            case "rjmp": return new Rjmp(tok);
             case "mov": return new Mov(tok);
             case "movw": return new Movw(tok);
             case "mul": return new Mul(tok);
             case "neg": return new Neg(tok);
+            case "nop": return new Nop(tok);
             case "or": return new Or(tok);
             case "ori": return new Ori(tok);
+            case "out": return new Out(tok);
             case "pop": return new Pop(tok);
             case "push": return new Push(tok);
             case "rcall": return new Rcall(tok);
+            case "ret": return new Ret(tok);
+            case "rjmp": return new Rjmp(tok);
             case "ror": return new Ror(tok);
             case "sbc": return new Sbc(tok);
             case "sbci": return new Sbci(tok);
+            case "sbic": return new Sbic(tok);
+            case "sbis": return new Sbis(tok);
             case "sbiw": return new Sbiw(tok);
+            case "sbr": return new Sbr(tok);
+            case "sbrc": return new Sbrc(tok);
+            case "sbrs": return new Sbrs(tok);
             case "sec": return new Sec(tok);
             case "seh": return new Seh(tok);
             case "sei": return new Sei(tok);
@@ -2303,13 +2362,11 @@ abstract class AvrFactory : MachineFactory {
             case "set": return new Set(tok);
             case "sev": return new Sev(tok);
             case "sez": return new Sez(tok);
+            case "st": return new St(tok);
             case "std": return new Std(tok);
+            case "sts": return new Sts(tok);
             case "sub": return new Sub(tok);
             case "subi": return new Subi(tok);
-            case "sbic": return new Sbic(tok);
-            case "sbis": return new Sbis(tok);
-            case "sbrc": return new Sbrc(tok);
-            case "sbrs": return new Sbrs(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
