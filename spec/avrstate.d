@@ -169,7 +169,7 @@ class AvrState : MachineState {
 
         void setSregLogical(ubyte result) {
             sreg.V = false;
-            sreg.N = cast(bool)(result & 0b10000000);
+            sreg.N = cast(bool)(result & 0x80);
             sreg.S = sreg.V ^ sreg.N;
             sreg.Z = result == 0;
         }
@@ -221,9 +221,9 @@ class AvrState : MachineState {
     }
 
     private static bool[6] getRelevantBits(ubyte a, ubyte b, ubyte c) {
-        return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b10000000),
-               cast(bool)(b & 0b00001000), cast(bool)(b & 0b10000000),
-               cast(bool)(c & 0b00001000), cast(bool)(c & 0b10000000)];
+        return [cast(bool)(a & 0x08), cast(bool)(a & 0x80),
+               cast(bool)(b & 0x08), cast(bool)(b & 0x80),
+               cast(bool)(c & 0x08), cast(bool)(c & 0x80)];
     }
 }
 
@@ -746,10 +746,7 @@ class Cbr : Instruction!AvrState {
     override cycleCount callback(AvrState state) const {
         ubyte result = state.valueRegisters[regd].value & ~k;
         state.valueRegisters[regd].value = result;
-        state.sreg.V = false;
-        state.sreg.N = cast(bool)(result & 0x80);
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.Z = result == 0;
+        state.setSregLogical(result);
         return 1;
     }
 }
@@ -1953,10 +1950,7 @@ class Sbr : Instruction!AvrState {
     override cycleCount callback(AvrState state) const {
         ubyte result = state.valueRegisters[regd].value | k;
         state.valueRegisters[regd].value = result;
-        state.sreg.V = false;
-        state.sreg.N = cast(bool)(result & 0x80);
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
-        state.sreg.Z = result == 0;
+        state.setSregLogical(result);
         return 1;
     }
 }
