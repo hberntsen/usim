@@ -1602,6 +1602,28 @@ unittest {
     assert(!state.sreg.C);
 }
 
+class Muls : Instruction!AvrState {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        int rd = cast(byte)state.valueRegisters[regd].value;
+        int rr = cast(byte)state.valueRegisters[regr].value;
+        int result = rr * rd;
+        state.valueRegisters[1].value = cast(ubyte)(result >>> 24);
+        state.valueRegisters[0].value = cast(ubyte)(result & 0xff);
+        state.sreg.Z = result == 0;
+        state.sreg.C = cast(bool)(result & 0x8000);
+        return 2;
+    }
+}
+
 class Neg : Instruction!AvrState {
     uint regd;
 
@@ -2376,6 +2398,7 @@ abstract class AvrFactory : MachineFactory {
             case "mov": return new Mov(tok);
             case "movw": return new Movw(tok);
             case "mul": return new Mul(tok);
+            case "muls": return new Muls(tok);
             case "neg": return new Neg(tok);
             case "nop": return new Nop(tok);
             case "or": return new Or(tok);
