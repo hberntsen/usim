@@ -2302,6 +2302,30 @@ class Sbrs : SkipInstruction {
     }
 }
 
+class Swap : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        auto value = state.valueRegisters[regd].value;
+        state.valueRegisters[regd].value = value >>> 4 | (value & 0x0f) << 4;
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AvrState();
+    auto swap = new Swap(new InstructionToken(0,0,[],"swap",["r0"]));
+    state.setInstructions([swap]);
+    state.valueRegisters[0].value = 0xf9;
+    swap.callback(state);
+    assert(state.valueRegisters[0].value == 0x9f);
+}
+
 class Tst : Instruction!AvrState {
     uint regd;
 
@@ -2455,6 +2479,7 @@ abstract class AvrFactory : MachineFactory {
             case "sts": return new Sts(tok);
             case "sub": return new Sub(tok);
             case "subi": return new Subi(tok);
+            case "swap": return new Swap(tok);
             case "tst": return new Tst(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
