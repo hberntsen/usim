@@ -801,6 +801,24 @@ class Cln : Instruction!AvrState {
     }
 }
 
+class Clr : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.valueRegisters[regd].value = 0;
+        state.sreg.S = false;
+        state.sreg.V = false;
+        state.sreg.N = false;
+        state.sreg.Z = true;
+        return 1;
+    }
+}
+
 class Cls : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -1991,6 +2009,20 @@ class Sen : Instruction!AvrState {
     }
 }
 
+class Ser : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.valueRegisters[regd].value = 0xff;
+        return 1;
+    }
+}
+
 class Ses : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -2317,6 +2349,7 @@ abstract class AvrFactory : MachineFactory {
             case "clh": return new Clh(tok);
             case "cli": return new Cli(tok);
             case "cln": return new Cln(tok);
+            case "clr": return new Clr(tok);
             case "cls": return new Cls(tok);
             case "clt": return new Clt(tok);
             case "clv": return new Clv(tok);
@@ -2366,6 +2399,7 @@ abstract class AvrFactory : MachineFactory {
             case "seh": return new Seh(tok);
             case "sei": return new Sei(tok);
             case "sen": return new Sen(tok);
+            case "ser": return new Ser(tok);
             case "ses": return new Ses(tok);
             case "set": return new Set(tok);
             case "sev": return new Sev(tok);
