@@ -179,7 +179,6 @@ class AvrState : MachineState {
             bool H = bits[0] && bits[2] || bits[2] && !bits[4] || !bits[4] && bits[0];
             bool V = bits[1] && bits[3] && !bits[5] || !bits[1] && !bits[3] && bits[5];
             bool N = bits[5];
-            // todo: compute S before V & N or after?
             bool S = sreg.V ^ sreg.N;
             bool Z = c == 0;
             bool C = bits[1] && bits[3] || bits[3] && !bits[5] || !bits[5] && bits[1];
@@ -415,9 +414,9 @@ class Asr : Instruction!AvrState {
 
         state.valueRegisters[regd].value = (state.valueRegisters[regd].value >> 1) | (state.valueRegisters[regd].value & 0x80);
 
-        state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.N = cast(bool)(state.valueRegisters[regd].value & 0x80);
         state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.Z = state.valueRegisters[regd].value == 0;
 
         return 1;
@@ -1287,7 +1286,7 @@ class Lsr : Instruction!AvrState {
         state.valueRegisters[regd].value = result;
 
         state.sreg.N = false;
-        state.sreg.C = (rd & 0x01) == 1;
+        state.sreg.C = cast(bool)(rd & 0x01);
         state.sreg.V = state.sreg.N ^ state.sreg.C;
         state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.Z = result == 0;
@@ -1566,9 +1565,9 @@ class Neg : Instruction!AvrState {
         ubyte rd = state.valueRegisters[regd].value;
         ubyte result = cast(ubyte)(256 - rd);
         state.valueRegisters[regd].value = cast(ubyte)(result);
-        state.sreg.H = cast(bool)(result & 0b00001000 | rd ^ 0b00001000);
+        state.sreg.H = cast(bool)(result & 0x08 | rd ^ 0x08);
         state.sreg.V = result == 0x80;
-        state.sreg.N = cast(bool)(result & 0b10000000);
+        state.sreg.N = cast(bool)(result & 0x80);
         state.sreg.S = state.sreg.V ^ state.sreg.N;
         state.sreg.Z = result == 0;
         state.sreg.C = result != 0;
@@ -1767,9 +1766,9 @@ class Ror : Instruction!AvrState {
         ubyte rd = state.valueRegisters[regd].value;
         ubyte result = rd >>> 1 | (state.sreg.C ? 0x80 : 0);
         state.valueRegisters[regd].value = result;
-        state.sreg.N = cast(bool)(result & 0b10000000);
+        state.sreg.N = cast(bool)(result & 0x80);
         state.sreg.Z = result == 0;
-        state.sreg.C = rd & 1;
+        state.sreg.C = cast(bool)(rd & 1);
         state.sreg.V = state.sreg.N ^ state.sreg.C;
         state.sreg.S = state.sreg.V ^ state.sreg.N;
         return 1;
