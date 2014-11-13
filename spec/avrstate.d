@@ -2226,6 +2226,20 @@ class Sbrs : SkipInstruction {
     }
 }
 
+class Tst : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.setSregLogical(state.valueRegisters[regd]);
+        return 1;
+    }
+}
+
 class WriteByte : Instruction!AvrState {
     this(in InstructionToken tok) {
         super(tok);
@@ -2361,6 +2375,7 @@ abstract class AvrFactory : MachineFactory {
             case "sts": return new Sts(tok);
             case "sub": return new Sub(tok);
             case "subi": return new Subi(tok);
+            case "tst": return new Tst(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
