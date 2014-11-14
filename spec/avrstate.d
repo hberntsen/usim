@@ -2353,6 +2353,20 @@ class WriteByte : Instruction!AvrState {
     }
 }
 
+class WriteByteJmp : WriteByte {
+    const Ret ret;
+
+    this(in InstructionToken tok) {
+        super(tok);
+        ret = new Ret(tok);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        super.callback(state);
+        ret.callback(state);
+        return 0;
+    }
+}
 unittest {
     auto state = new AvrState();
     state.valueRegisters[0].value = 0;
@@ -2482,6 +2496,7 @@ abstract class AvrFactory : MachineFactory {
             case "swap": return new Swap(tok);
             case "tst": return new Tst(tok);
             case "write_byte": return new WriteByte(tok);
+            case "write_byte_jmp": return new WriteByteJmp(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
     }
