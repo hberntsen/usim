@@ -1065,10 +1065,8 @@ class Elpm : Instruction!AvrState {
         size_t z = cast(size_t)(state.zreg);
         size_t rampz = cast(size_t)(state.getIoRegisterByIo(0x3b));
 
-        size_t offset = (z & 0x0001);
-
         size_t address = (z & 0x00ffff) + ((rampz & 0x00ffff) << 16);
-        ubyte value = state.program[address + (offset == 0 ? 1 : 0)];
+        ubyte value = state.program[address];
 
         state.valueRegisters[regd] = value;
 
@@ -1095,11 +1093,11 @@ unittest {
 
     state.fetchInstruction();
     elpm.callback(state);
-    assert(state.valueRegisters[0].value == 0xbb);
+    assert(state.valueRegisters[0].value == 0xaa);
     assert(state.zreg.value == 0x1001);
     state.fetchInstruction();
     elpm2.callback(state);
-    assert(state.valueRegisters[1].value = 0xaa);
+    assert(state.valueRegisters[1].value = 0xbb);
 }
 
 
