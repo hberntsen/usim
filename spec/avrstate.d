@@ -169,7 +169,7 @@ class AvrState : MachineState {
 
         void setSregLogical(ubyte result) {
             sreg.V = false;
-            sreg.N = cast(bool)(result & 0b10000000);
+            sreg.N = cast(bool)(result & 0x80);
             sreg.S = sreg.V ^ sreg.N;
             sreg.Z = result == 0;
         }
@@ -221,9 +221,9 @@ class AvrState : MachineState {
     }
 
     private static bool[6] getRelevantBits(ubyte a, ubyte b, ubyte c) {
-        return [cast(bool)(a & 0b00001000), cast(bool)(a & 0b10000000),
-               cast(bool)(b & 0b00001000), cast(bool)(b & 0b10000000),
-               cast(bool)(c & 0b00001000), cast(bool)(c & 0b10000000)];
+        return [cast(bool)(a & 0x08), cast(bool)(a & 0x80),
+               cast(bool)(b & 0x08), cast(bool)(b & 0x80),
+               cast(bool)(c & 0x08), cast(bool)(c & 0x80)];
     }
 }
 
@@ -733,6 +733,37 @@ unittest {
     assert(state.stackPointer.value == spInit);
 }
 
+class Cbr : Instruction!AvrState {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte result = state.valueRegisters[regd].value & ~k;
+        state.valueRegisters[regd].value = result;
+        state.setSregLogical(result);
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AvrState();
+    auto cbr = new Cbr(new InstructionToken(0, 0, [], "cbr", ["r0","0x0e"]));
+    auto sbr = new Sbr(new InstructionToken(0, 2, [], "sbr", ["r0","0x31"]));
+    state.setInstructions([cbr, sbr]);
+
+    state.valueRegisters[0].value = 0xaa;
+    cbr.callback(state);
+    assert(state.valueRegisters[0].value == 0xa0);
+    sbr.callback(state);
+    assert(state.valueRegisters[0].value == 0xb1);
+}
+
 class Clc : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -766,6 +797,24 @@ class Cln : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.sreg.N = false;
+        return 1;
+    }
+}
+
+class Clr : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.valueRegisters[regd].value = 0;
+        state.sreg.S = false;
+        state.sreg.V = false;
+        state.sreg.N = false;
+        state.sreg.Z = true;
         return 1;
     }
 }
@@ -1553,6 +1602,50 @@ unittest {
     assert(!state.sreg.C);
 }
 
+class Muls : Instruction!AvrState {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        int rd = cast(byte)state.valueRegisters[regd].value;
+        int rr = cast(byte)state.valueRegisters[regr].value;
+        int result = rr * rd;
+        state.valueRegisters[1].value = cast(ubyte)(result >>> 24);
+        state.valueRegisters[0].value = cast(ubyte)(result & 0xff);
+        state.sreg.Z = result == 0;
+        state.sreg.C = cast(bool)(result & 0x8000);
+        return 2;
+    }
+}
+
+class Mulsu : Instruction!AvrState {
+    uint regd;
+    uint regr;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        int rd = cast(byte)state.valueRegisters[regd].value;
+        int rr = state.valueRegisters[regr].value;
+        int result = rr * rd;
+        state.valueRegisters[1].value = cast(ubyte)(result >>> 24);
+        state.valueRegisters[0].value = cast(ubyte)(result & 0xff);
+        state.sreg.Z = result == 0;
+        state.sreg.C = cast(bool)(result & 0x8000);
+        return 2;
+    }
+}
+
 class Neg : Instruction!AvrState {
     uint regd;
 
@@ -1906,6 +1999,24 @@ unittest {
     assert(!state.sreg.S);
 }
 
+class Sbr : Instruction!AvrState {
+    uint regd;
+    ubyte k;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        k = cast(ubyte)parseHex(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte result = state.valueRegisters[regd].value | k;
+        state.valueRegisters[regd].value = result;
+        state.setSregLogical(result);
+        return 1;
+    }
+}
+
 class Sec : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
@@ -1938,6 +2049,20 @@ class Sen : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.sreg.N = true;
+        return 1;
+    }
+}
+
+class Ser : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.valueRegisters[regd].value = 0xff;
         return 1;
     }
 }
@@ -2177,6 +2302,44 @@ class Sbrs : SkipInstruction {
     }
 }
 
+class Swap : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        auto value = state.valueRegisters[regd].value;
+        state.valueRegisters[regd].value = value >>> 4 | (value & 0x0f) << 4;
+        return 1;
+    }
+}
+
+unittest {
+    auto state = new AvrState();
+    auto swap = new Swap(new InstructionToken(0,0,[],"swap",["r0"]));
+    state.setInstructions([swap]);
+    state.valueRegisters[0].value = 0xf9;
+    swap.callback(state);
+    assert(state.valueRegisters[0].value == 0x9f);
+}
+
+class Tst : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.setSregLogical(state.valueRegisters[regd]);
+        return 1;
+    }
+}
+
 class WriteByte : Instruction!AvrState {
     this(in InstructionToken tok) {
         super(tok);
@@ -2224,11 +2387,11 @@ unittest {
 abstract class AvrFactory : MachineFactory {
     static Instruction!AvrState createInstruction(AvrState)(in InstructionToken tok) {
         switch (tok.name) {
-            case "add" : return new Add(tok);
             case "adc" : return new Adc(tok);
+            case "add" : return new Add(tok);
             case "adiw": return new Adiw(tok);
-            case "andi": return new Andi(tok);
             case "and": return new And(tok);
+            case "andi": return new Andi(tok);
             case "asr": return new Asr(tok);
             case "bld": return new Bld(tok);
             case "brcc": return new Brcc(tok);
@@ -2249,10 +2412,12 @@ abstract class AvrFactory : MachineFactory {
             case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
+            case "cbr": return new Cbr(tok);
             case "clc": return new Clc(tok);
             case "clh": return new Clh(tok);
             case "cli": return new Cli(tok);
             case "cln": return new Cln(tok);
+            case "clr": return new Clr(tok);
             case "cls": return new Cls(tok);
             case "clt": return new Clt(tok);
             case "clv": return new Clv(tok);
@@ -2267,49 +2432,55 @@ abstract class AvrFactory : MachineFactory {
             case "eijmp": return new Eijmp(tok);
             case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
-            case "jmp": return new Jmp(tok);
             case "in": return new In(tok);
             case "inc": return new Inc(tok);
+            case "jmp": return new Jmp(tok);
             case "ld": return new Ld(tok);
             case "ldd": return new Ldd(tok);
             case "ldi": return new Ldi(tok);
             case "lds": return new Lds(tok);
             case "lpm": return new Lpm(tok);
             case "lsr": return new Lsr(tok);
-            case "out": return new Out(tok);
-            case "st": return new St(tok);
-            case "sts": return new Sts(tok);
-            case "nop": return new Nop(tok);
-            case "ret": return new Ret(tok);
-            case "rjmp": return new Rjmp(tok);
             case "mov": return new Mov(tok);
             case "movw": return new Movw(tok);
             case "mul": return new Mul(tok);
+            case "muls": return new Muls(tok);
+            case "mulsu": return new Mulsu(tok);
             case "neg": return new Neg(tok);
+            case "nop": return new Nop(tok);
             case "or": return new Or(tok);
             case "ori": return new Ori(tok);
+            case "out": return new Out(tok);
             case "pop": return new Pop(tok);
             case "push": return new Push(tok);
             case "rcall": return new Rcall(tok);
+            case "ret": return new Ret(tok);
+            case "rjmp": return new Rjmp(tok);
             case "ror": return new Ror(tok);
             case "sbc": return new Sbc(tok);
             case "sbci": return new Sbci(tok);
+            case "sbic": return new Sbic(tok);
+            case "sbis": return new Sbis(tok);
             case "sbiw": return new Sbiw(tok);
+            case "sbr": return new Sbr(tok);
+            case "sbrc": return new Sbrc(tok);
+            case "sbrs": return new Sbrs(tok);
             case "sec": return new Sec(tok);
             case "seh": return new Seh(tok);
             case "sei": return new Sei(tok);
             case "sen": return new Sen(tok);
+            case "ser": return new Ser(tok);
             case "ses": return new Ses(tok);
             case "set": return new Set(tok);
             case "sev": return new Sev(tok);
             case "sez": return new Sez(tok);
+            case "st": return new St(tok);
             case "std": return new Std(tok);
+            case "sts": return new Sts(tok);
             case "sub": return new Sub(tok);
             case "subi": return new Subi(tok);
-            case "sbic": return new Sbic(tok);
-            case "sbis": return new Sbis(tok);
-            case "sbrc": return new Sbrc(tok);
-            case "sbrs": return new Sbrs(tok);
+            case "swap": return new Swap(tok);
+            case "tst": return new Tst(tok);
             case "write_byte": return new WriteByte(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
