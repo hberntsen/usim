@@ -1002,10 +1002,9 @@ class Eicall : Instruction!AvrState {
         size_t z = cast(size_t)(state.zreg);
         size_t eind = state.getIoRegisterByIo(0x3c);
 
-        size_t address = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
-        writefln("%x, %x -> %x, %x -> %x", z, eind, z & 0x00ffff, (eind & 0x00ffff) << 16, address);
+        size_t newPc = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
 
-        state.jump(address);
+        state.jump(newPc*2);
 
         return 4; // NOTE: 3 on XMEGA
     }
