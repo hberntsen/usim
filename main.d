@@ -24,11 +24,12 @@ void main(string[] args) {
         stderr.writeln("File ", filename, " could not be read");
         return;
     }
-    InstructionToken[] instructions = parse(file);
+    ubyte[] data;
+    InstructionToken[] instructions = parse(file, data);
     file.close();
 
     auto factory = machineFactories[machine];
-    AtMega2560State state = cast(AtMega2560State)(factory.createState(instructions));
+    AtMega2560State state = cast(AtMega2560State)(factory.createState(instructions, data));
 
     auto sim = new Simulator!AtMega2560State(state);
 

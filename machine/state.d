@@ -161,7 +161,7 @@ interface MachineState {
 }
 
 abstract class MachineFactory {
-    public MachineState createState(in InstructionToken[] token) const;
+    public MachineState createState(in InstructionToken[] token, in ubyte[] data) const;
 }
 
 MachineFactory[string] machineFactories;

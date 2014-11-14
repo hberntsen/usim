@@ -2322,12 +2322,4 @@ abstract class AvrFactory : MachineFactory {
         }
         return instructions;
     }
-
-    static Memory fillProgramMemory(in InstructionToken[] tokens, Memory
-            programMemory) {
-        foreach(tok; tokens) {
-            programMemory[tok.address .. tok.address + tok.raw.length] = tok.raw;
-        }
-        return programMemory;
-    }
 }

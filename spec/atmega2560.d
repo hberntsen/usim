@@ -19,10 +19,10 @@ class AtMega2560Factory : AvrFactory {
         machineFactories["atmega2560"] = new this();
     }
 
-    override MachineState createState(in InstructionToken[] tokens) const {
+    override MachineState createState(in InstructionToken[] tokens, in ubyte[] data) const {
         auto state = new AtMega2560State();
         state.setInstructions(createInstructions(tokens));
-        state.program = fillProgramMemory(tokens, state.program);
+        state.program[0 .. data.length] = data;
         return state;
     }
 }

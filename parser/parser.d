@@ -53,7 +53,7 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
     auto rawStrings = filter!(str => !str.empty)(split(matches[1], " "));
     ubyte[] rawBytes = map!(str => str.to!ubyte(16))(rawStrings).array;
 
-    r = ctRegex!(`^\s*([a-z]+)\s*$`);
+    r = ctRegex!(`^\s*(\.?[a-z]+)\s*$`);//also allow .word instruction
     matches = matchFirst(pieces[2], r);
     if(matches.length < 2) {
         return null;
@@ -80,23 +80,45 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
     return new InstructionToken(lineNumber, address, rawBytes, instruction, parameters);
 }
 
-InstructionToken[] parse(File file) {
+string parseSection(in string line) {
+    auto r = ctRegex!(`Disassembly of section ([a-z\.]*):`);
+    auto matches = matchFirst(line, r);
+    if (matches.empty) {
+        return null;
+    }
+    return matches[1];
+}
+
+InstructionToken[] parse(File file, out ubyte[] data) {
     InstructionToken[] instructions;
     instructions.length = 100;
     int lineNumber = 0;
     int i = 0;
     string line;
+    string currentSection;
+    ubyte[] dataSection;
     while ((line = file.readln()) !is null) {
         InstructionToken token = parseInstruction(lineNumber, line);
-        if (token !is null) {
+        if (token is null) {
+            string section = parseSection(line);
+            if(section !is null) {
+                currentSection = section;
+            }
+        }
+        else if (currentSection == ".text"){
             if (i == instructions.length) {
                 instructions.length *= 2;
             }
             instructions[i++] = token;
+            data ~= token.raw;
+        }
+        else if (currentSection == ".data") {
+            dataSection ~= token.raw;
         }
         lineNumber++;
     }
     instructions.length = i;
+    data ~= dataSection;
     return instructions;
 }
 
@@ -105,11 +127,13 @@ unittest {
         parseInstruction(123, "      ff:\t0c 94 72 00 \tjmp\t0xe4, Z+\t; 0xe4 <__ctors_end>"),
         parseInstruction(123, "      ff:\t0c 94 72 00 \tjmp\t0xe4\t; 0xe4 <write_byte>"),
         parseInstruction(123, " 160:\t  08 95       \t ret"),
-        parseInstruction(123, " 19a2:\t ff cf       \trjmp\t.-2      \t; 0x19a2 <__stop_program>")
+        parseInstruction(123, " 19a2:\t ff cf       \trjmp\t.-2      \t; 0x19a2 <__stop_program>"),
+        parseInstruction(123, "    0:\t01 00       \t.word\t0x0001\t; ????")
     ];
     foreach (i, tok; tokens) {
         writeln(tok);
     }
+    assert(parseSection("Disassembly of section .data:") == ".data");
 }
 
 unittest {
