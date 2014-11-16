@@ -1127,7 +1127,7 @@ class Ijmp : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.jumpIndex(state.zreg);
-        return 3;
+        return 2;
     }
 }
 
