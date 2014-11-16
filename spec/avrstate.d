@@ -1121,6 +1121,16 @@ class Eor : Instruction!AvrState {
     }
 }
 
+class Ijmp : Instruction!AvrState {
+
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        state.jumpIndex(state.zreg);
+        return 3;
+    }
+}
+
 class Jmp : Instruction!AvrState {
     size_t dest;
 
@@ -2443,6 +2453,7 @@ abstract class AvrFactory : MachineFactory {
             case "eijmp": return new Eijmp(tok);
             case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
+            case "ijmp": return new Ijmp(tok);
             case "in": return new In(tok);
             case "inc": return new Inc(tok);
             case "jmp": return new Jmp(tok);
