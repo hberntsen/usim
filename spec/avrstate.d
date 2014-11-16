@@ -1494,6 +1494,25 @@ class Ret : Instruction!AvrState {
     }
 }
 
+class Reti : Instruction!AvrState {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        uint newPc = state.data[state.stackPointer + 1] +
+            (state.data[state.stackPointer + 2] << 8)+
+            (state.data[state.stackPointer + 3] << 16);
+
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value + 3);
+        state.jump(newPc * 2);
+
+        state.sreg.I = true;
+
+        return 5; //less on devices with a 16-bit PC
+    }
+}
+
 class Rjmp : Instruction!AvrState {
     size_t dest;
 
@@ -2496,6 +2515,7 @@ abstract class AvrFactory : MachineFactory {
             case "push": return new Push(tok);
             case "rcall": return new Rcall(tok);
             case "ret": return new Ret(tok);
+            case "reti": return new Reti(tok);
             case "rjmp": return new Rjmp(tok);
             case "ror": return new Ror(tok);
             case "sbc": return new Sbc(tok);
