@@ -771,6 +771,24 @@ unittest {
     assert(state.stackPointer.value == spInit);
 }
 
+class Cbi : Instruction!AvrState {
+    size_t address;
+    uint bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        address = parseHex(token.parameters[0]);
+        assert(address <= 31);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value & ~(1 << bit);
+        return 2; // 1 on xmega and tinyavr
+    }
+}
+
 class Cbr : Instruction!AvrState {
     uint regd;
     ubyte k;
@@ -2327,6 +2345,24 @@ abstract class SkipInstruction :Instruction!AvrState {
     }
 }
 
+class Sbi : Instruction!AvrState {
+    size_t address;
+    uint bit;
+
+    this(in InstructionToken token) {
+        super(token);
+        address = parseHex(token.parameters[0]);
+        assert(address <= 31);
+        bit = parseInt(token.parameters[1]);
+        assert(0 <= bit && bit <= 7);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value | cast(ubyte)(1 << bit);
+        return 2; // 1 on xmega and tinyavr
+    }
+}
+
 class Sbic : SkipInstruction {
     size_t address;
     int bit;
@@ -2534,6 +2570,7 @@ abstract class AvrFactory : MachineFactory {
             case "brvs": return new Brvs(tok);
             case "bst": return new Bst(tok);
             case "call": return new Call(tok);
+            case "cbi": return new Cbi(tok);
             case "cbr": return new Cbr(tok);
             case "clc": return new Clc(tok);
             case "clh": return new Clh(tok);
@@ -2584,6 +2621,7 @@ abstract class AvrFactory : MachineFactory {
             case "ror": return new Ror(tok);
             case "sbc": return new Sbc(tok);
             case "sbci": return new Sbci(tok);
+            case "sbi": return new Sbi(tok);
             case "sbic": return new Sbic(tok);
             case "sbis": return new Sbis(tok);
             case "sbiw": return new Sbiw(tok);
