@@ -12,7 +12,7 @@ import core.bitop;
 import parser.parser : InstructionToken;
 
 final class Sreg : ReferenceRegister!ubyte {
-    private bool getBit(uint bitNum) const {
+    public bool getBit(uint bitNum) const {
         return cast(bool)(bytes()[0] & (1 << bitNum));
     }
     private bool setBit(uint bitNum, bool state) {
@@ -462,9 +462,9 @@ unittest {
 abstract class RelativeBranchInstruction : Instruction!AvrState {
     size_t dest;
 
-    this(in InstructionToken token) {
+    this(in InstructionToken token, uint i = 0) {
         super(token);
-        auto relativePc = parseInt(token.parameters[0]);
+        auto relativePc = parseInt(token.parameters[i]);
         assert(relativePc <= 63 * 2 && relativePc >= -64 * 2);
         dest = address + 2 + relativePc;
     }
@@ -483,6 +483,32 @@ abstract class RelativeBranchInstruction : Instruction!AvrState {
     }
 
     bool check(AvrState state) const;
+}
+
+class Brbc : RelativeBranchInstruction {
+    uint s;
+
+    this(in InstructionToken token) {
+        s = parseInt(token.parameters[0]);
+        super(token, 1);
+    }
+
+    override bool check(AvrState state) const {
+        return !state.sreg.getBit(s);
+    }
+}
+
+class Brbs : RelativeBranchInstruction {
+    uint s;
+
+    this(in InstructionToken token) {
+        s = parseInt(token.parameters[0]);
+        super(token, 1);
+    }
+
+    override bool check(AvrState state) const {
+        return state.sreg.getBit(s);
+    }
 }
 
 class Brcc : RelativeBranchInstruction {
@@ -2452,6 +2478,8 @@ abstract class AvrFactory : MachineFactory {
             case "andi": return new Andi(tok);
             case "asr": return new Asr(tok);
             case "bld": return new Bld(tok);
+            case "brbc": return new Brbc(tok);
+            case "brbs": return new Brbs(tok);
             case "brcc": return new Brcc(tok);
             case "brcs": return new Brcs(tok);
             case "breq": return new Breq(tok);
