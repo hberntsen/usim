@@ -1121,6 +1121,24 @@ class Eor : Instruction!AvrState {
     }
 }
 
+class Icall : Instruction!AvrState {
+
+    this(in InstructionToken token) { super(token); }
+
+    override cycleCount callback(AvrState state) const {
+        //Program counter points to next instruction, we want that address on
+        //the stack
+        size_t pc = state.programCounter;
+        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
+            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
+        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
+
+        state.jumpIndex(state.zreg);
+
+        return 4; //depends on PC size and model, 16-bit PC and xmega is faster
+    }
+}
+
 class Ijmp : Instruction!AvrState {
 
     this(in InstructionToken token) { super(token); }
@@ -2453,6 +2471,7 @@ abstract class AvrFactory : MachineFactory {
             case "eijmp": return new Eijmp(tok);
             case "elpm": return new Elpm(tok);
             case "eor": return new Eor(tok);
+            case "icall": return new Icall(tok);
             case "ijmp": return new Ijmp(tok);
             case "in": return new In(tok);
             case "inc": return new Inc(tok);
