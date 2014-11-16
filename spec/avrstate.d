@@ -531,6 +531,18 @@ class Brcs : RelativeBranchInstruction {
     }
 }
 
+class Break : Instruction!AvrState {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        // Used by the on-chip debug system, puts CPU in stopped mode.
+        // Should be treated as NOP.
+        return 1;
+    }
+}
+
 class Breq : RelativeBranchInstruction {
     this(in InstructionToken token) {
         super(token);
@@ -2183,6 +2195,18 @@ class Sez : Instruction!AvrState {
     }
 }
 
+class Sleep : Instruction!AvrState {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        // Sets the circuit in sleep mode and waits for an interrupt.
+        // This is not relevant for this simulator.
+        return 1;
+    }
+}
+
 class Std : Instruction!AvrState {
     string refreg;
     uint q;
@@ -2410,6 +2434,17 @@ class Tst : Instruction!AvrState {
     }
 }
 
+class Wdr : Instruction!AvrState {
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        // resets the Watchdog Timer, which is not part of this simulator
+        return 1;
+    }
+}
+
 class WriteByte : Instruction!AvrState {
     this(in InstructionToken tok) {
         super(tok);
@@ -2482,6 +2517,7 @@ abstract class AvrFactory : MachineFactory {
             case "brbs": return new Brbs(tok);
             case "brcc": return new Brcc(tok);
             case "brcs": return new Brcs(tok);
+            case "break": return new Break(tok);
             case "breq": return new Breq(tok);
             case "brge": return new Brge(tok);
             case "brhc": return new Brhc(tok);
@@ -2563,6 +2599,7 @@ abstract class AvrFactory : MachineFactory {
             case "set": return new Set(tok);
             case "sev": return new Sev(tok);
             case "sez": return new Sez(tok);
+            case "sleep": return new Sleep(tok);
             case "st": return new St(tok);
             case "std": return new Std(tok);
             case "sts": return new Sts(tok);
@@ -2570,6 +2607,7 @@ abstract class AvrFactory : MachineFactory {
             case "subi": return new Subi(tok);
             case "swap": return new Swap(tok);
             case "tst": return new Tst(tok);
+            case "wdt": return new Wdr(tok);
             case "write_byte": return new WriteByte(tok);
             case "write_byte_jmp": return new WriteByteJmp(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
