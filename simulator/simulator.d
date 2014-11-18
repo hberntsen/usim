@@ -1,5 +1,6 @@
 module simulator.simulator;
 
+import std.algorithm;
 import std.stdio;
 import std.regex;
 import std.datetime : StopWatch, TickDuration;
@@ -26,39 +27,137 @@ interface BatchModeSimulator {
     SimulatorState run();
 }
 
+struct DebuggerState {
+    size_t[] breakpoints;
+}
+
+//Input: initial machine state (code is part of the machine state)
 final class Simulator(T) : BatchModeSimulator {
     T machineState;
     SimulatorState simulatorState;
+    DebuggerState debuggerState;
 
     this(T initialState) {
         this.machineState = initialState;
         this.simulatorState = SimulatorState(0);
+        this.debuggerState = DebuggerState();
     }
 
     private string handleShowCommand(string[] parameters) {
+        string[string] commands = [
+            "register": "show register content for the given registers, or all when none are specified",
+            "data": "show data memory content at the given address range",
+            "program": "show progam memory content at the given address range",
+            "instruction": "show the precise instruction under execution",
+            "summary": "show a summary of possibly relevant information",
+            "help": "show helpful infomration for `show`"
+        ];
+
+        auto commandAbbrev = abbrev(commands.keys);
+
+        string[] registers;
+        foreach (idx, register; machineState.valueRegisters) {
+            registers ~= format("r%02d %s", idx, register);
+        }
+
         if (parameters.length == 0) {
-            string[] stringifiedRegisters;
-            foreach (idx, register; machineState.valueRegisters) {
-                stringifiedRegisters ~= format("r%d: 0x%02x", idx,
-                        register.value);
-            }
             // todo: abstract this to the machinestate somewhere
             return format(
                     "cycles:\t%d\nregisters:\t%s\n%s\n%s\n",
                     simulatorState.cycles,
-                    stringifiedRegisters,
+                    registers,
                     machineState.refregs,
                     machineState.currentInstruction,
             );
         }
-        return "Nothing to show yet\n";
+
+        Memory mem = machineState.data;
+
+        switch(commandAbbrev[parameters[0]]) {
+            case "register":
+                if (parameters.length < 2) {
+                    return join(registers, "\n") ~ "\n";
+                }
+
+                string[] registerSet;
+                foreach (idx, param; parameters[1 .. $]) {
+                    size_t specifier;
+                    if (param[0] == 'r') {
+                        specifier = to!size_t(param[1 .. $]);
+                    } else {
+                        specifier = to!size_t(param[0 .. $]);
+                    }
+                    registerSet ~= registers[specifier];
+                }
+                return join(registerSet, "\n") ~ "\n";
+            case "program":
+                mem = machineState.program;
+                goto case;
+            case "eeprom":
+                mem = machineState.eeprom;
+                goto case;
+            case "data":
+                if (parameters.length < 2) {
+                    return "Usage: `show <memory> <begin> <end>`\n";
+                }
+
+                size_t begin;
+                size_t end;
+
+                if (parameters.length == 2) {
+                    begin = end = to!size_t(parameters[1]);
+                } else if (parameters.length > 2) {
+                    begin = to!size_t(parameters[1]);
+                    end = to!size_t(parameters[2]);
+                }
+
+                if (begin > end) {
+                    return "Begin greater than end, please try again";
+                }
+
+                string[] dataSlice;
+                foreach (idx, el; mem[begin .. end + 1]) {
+                    dataSlice ~= format("0x%06x 0x%02x", idx, el);
+                }
+                return join(dataSlice, "\n");
+            case "help":
+            default :
+                return format("%(- %s %|\n%)\n", commands);
+        }
+    }
+
+    private string handleSetCommand(string[] parameters) {
+        string[string] commands = [
+            "breakpoint": "set a breakpoint by linenumber",
+        ];
+        auto commandAbbrev = abbrev(commands.keys);
+
+        switch (commandAbbrev[parameters[0]]) {
+            case "breakpoint":
+                if (parameters.length < 2) {
+                    return "Usage: `set breakpoint <linenumber>`\n";
+                }
+                size_t breakpoint = to!size_t(parameters[1]);
+                debuggerState.breakpoints ~= breakpoint;
+                return format("Breakpoint set at line %d\n", breakpoint);
+            case "help":
+            default :
+                return format("%(- %s %|\n%)\n", commands);
+        }
     }
 
     public string handleDebugCommand(string command) {
-        string[] commands = [
-            "run", "s", "step", "continue", "set", "show", "help", "?"
+        string[string] commands = [
+            "run": "execute the program, ignoring breakpoints and further commands",
+            "s": "shortcut for `step`",
+            "step": "execute a single instruction",
+            "continue": "execute the program until the next breakpoint",
+            "set": "configure a setting, see `set help`",
+            "show": "show information on the current state, see `show help`", 
+            "help":  "show this output",
+            "?": "see `help`"
         ];
-        auto commandAbbrev = abbrev(commands);
+        auto commandAbbrev = abbrev(commands.keys);
 
         string[] parts = split(chomp(command));
         if (parts.length < 1) {
@@ -74,14 +173,15 @@ final class Simulator(T) : BatchModeSimulator {
                     step();
                     break;
                 case "continue":
+                    continueUntilBreakpoint();
                     break;
                 case "set":
-                    break;
+                    return handleSetCommand(parts[1..$]);
                 case "show":
                     return handleShowCommand(parts[1..$]);
                 case "help":
                 case "?":
-                    break;
+                    return format("%(- %s %|\n%)\n", commands);
                 default:
                     assert(false);
             }
@@ -92,11 +192,16 @@ final class Simulator(T) : BatchModeSimulator {
         return "OK\n";
     }
 
-    public SimulatorState run() {
+    public SimulatorState run(bool withBreakpoints = false) {
         StopWatch stopWatch;
         try {
             stopWatch.start();
-            while(step() != step()) {}
+            while(step() != step()) {
+                if (withBreakpoints &&
+                        canFind(debuggerState.breakpoints, machineState.currentInstruction.token.lineNumber)) {
+                    break;
+                }
+            }
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
             stopWatch.stop();
@@ -107,11 +212,13 @@ final class Simulator(T) : BatchModeSimulator {
 
             stderr.writeln(machineState.currentInstruction());
             debug stderr.writeln(machineState.currentInstruction().token);
-
-            //stderr.writeln(machineState.refregs);
         }
         this.simulatorState.runningTime = stopWatch.peek();
         return this.simulatorState;
+    }
+
+    public SimulatorState continueUntilBreakpoint() {
+        return run(true);
     }
 
     size_t step() {

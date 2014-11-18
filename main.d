@@ -13,11 +13,13 @@ import spec.avrstate;
 void main(string[] args) {
     string filename;
     bool showStatistics = true,
-         debugMode = false;
+         debugMode = false,
+         batchMode = false;
     string machine = "atmega2560";
     ushort port = 3742;
 
     getopt(args,
+            "batch", &batchMode,
             "debug", &debugMode,
             "file", &filename,
             "mcu", &machine,
@@ -27,11 +29,11 @@ void main(string[] args) {
     File file;
     try {
         file = File(filename, "r");
-    }
-    catch {
+    } catch {
         stderr.writeln("File ", filename, " could not be read");
         return;
     }
+
     ubyte[] data;
     InstructionToken[] instructions = parse(file, data);
     file.close();
@@ -56,7 +58,7 @@ void main(string[] args) {
 
             while (true) {
                 Socket input = s.accept();
-                writeln("accepted");
+                debug stderr.writeln("accepted connection");
                 char[64] buffer;
                 ptrdiff_t len;
                 do {
@@ -68,11 +70,11 @@ void main(string[] args) {
                     }
 
                     if (len == 0) {
-                        debug writeln("Input socket closed");
+                        debug stderr.writeln("Input socket closed");
                         break;
                     }
 
-                    writefln("%s", buffer[0 .. len]);
+                    debug stderr.writefln("%s", buffer[0 .. len]);
 
                     string response = avrSim.handleDebugCommand(buffer[0 ..  len].dup);
                     input.send(response);
@@ -81,6 +83,7 @@ void main(string[] args) {
         } catch (Throwable e) {
             writeln(e);
         }
+    } else if (batchMode) {
     } else {
         auto simulatorState = sim.run();
         if(showStatistics) {
