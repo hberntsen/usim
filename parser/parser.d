@@ -123,17 +123,6 @@ unittest {
         parseInstruction(123, " 19a2:\t ff cf       \trjmp\t.-2      \t; 0x19a2 <__stop_program>"),
         parseInstruction(123, "    0:\t01 00       \t.word\t0x0001\t; ????")
     ];
-    foreach (i, tok; tokens) {
-        writeln(tok);
-    }
     assert(parseSection("Disassembly of section .data:") == ".data");
 }
 
-unittest {
-    //File file = File("tests/test_write/test_write_atmega2560.dump", "r");
-    //InstructionToken[] instructions = parse(file);
-    //file.close();
-    //foreach (i, instr; instructions) {
-        //writefln("%4d: %s", i, instr);
-    //}
-}

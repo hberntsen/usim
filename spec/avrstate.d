@@ -1062,7 +1062,7 @@ class Eicall : Instruction!AvrState {
         state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
 
         size_t z = cast(size_t)(state.zreg);
-        size_t eind = state.getIoRegisterByIo(0x3c);
+        size_t eind = state.getIoRegisterByIo(AvrState.RAMPZ);
 
         size_t newPc = (z & 0x00ffff) + ((eind & 0x00ffff) << 16);
 
@@ -1075,13 +1075,13 @@ class Eicall : Instruction!AvrState {
 unittest {
     auto state = new AvrState();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
-    //rcall jumps to the ret instruction
+    //eicall jumps to the ret instruction
     auto eicall = new Eicall(new InstructionToken(0,2,[],"eicall",[]));
     auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
-    auto ret = new Ret(new InstructionToken(0,0x211001,[],"ret",[]));
+    auto ret = new Ret(new InstructionToken(0,0x211000,[],"ret",[]));
     state.setInstructions([nop0,eicall,nop1,ret]);
-    state.zreg.value = cast(ushort)(0x1001);
-    state.setIoRegisterByIo(0x3c, cast(ubyte)(0x21));
+    state.zreg.value = cast(ushort)(0x8800);
+    state.setIoRegisterByIo(AvrState.RAMPZ, cast(ubyte)(0x10));
 
     ushort spInit = state.stackPointer.value;
 
@@ -1091,7 +1091,7 @@ unittest {
     eicall.callback(state);
 
     assert(state.stackPointer.value == spInit - 3);
-    assert(state.nextInstruction.address == 0x211001);
+    assert(state.nextInstruction.address == 0x211000);
     assert(state.data[spInit-2] == 2);
 }
 
