@@ -49,7 +49,7 @@ abstract class Instruction(T) {
     }
 
     public override string toString() const {
-         return format("%d\t%x\t%s",lineNumber,address,name);
+         return format("[%d] 0x%06x %s %s", lineNumber, address, name, token.parameters);
     }
 
     string name; //e.g. ADDI

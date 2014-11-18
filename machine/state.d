@@ -17,6 +17,11 @@ abstract class Register
         return name;
     }
 
+    override string toString() {
+        return format("0x%(%02x %)", bytes);
+    }
+
+
     abstract @property ubyte[] bytes();
     abstract @property ubyte[] bytes(ubyte[] newValue);
 
@@ -54,10 +59,6 @@ class ReferenceRegister(T) : Register {
         //The slice should always be a shared slice
         //assert(this.slice2.capacity == 0);
     //}
-
-    override string toString() {
-        return format("%(%x %)", bytes);
-    }
 
     final {
         override @property ubyte[] bytes() {

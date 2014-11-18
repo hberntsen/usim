@@ -45,7 +45,7 @@ final class Simulator(T) : BatchModeSimulator {
 
     private string handleShowCommand(string[] parameters) {
         string[string] commands = [
-            "register": "show register content for the given registers, or all when none are specified",
+            "registers": "show register content for the given registers, or all when none are specified",
             "data": "show data memory content at the given address range",
             "program": "show progam memory content at the given address range",
             "instruction": "show the precise instruction under execution",
@@ -63,18 +63,19 @@ final class Simulator(T) : BatchModeSimulator {
         if (parameters.length == 0) {
             // todo: abstract this to the machinestate somewhere
             return format(
-                    "cycles:\t%d\nregisters:\t%s\n%s\n%s\n",
+                    "cycles:\t%d\nregisters:\t%s\n%s\n%s\n%s\n",
                     simulatorState.cycles,
                     registers,
                     machineState.refregs,
                     machineState.currentInstruction,
+                    machineState.nextInstruction,
             );
         }
 
         Memory mem = machineState.data;
 
         switch(commandAbbrev[parameters[0]]) {
-            case "register":
+            case "registers":
                 if (parameters.length < 2) {
                     return join(registers, "\n") ~ "\n";
                 }
@@ -90,6 +91,8 @@ final class Simulator(T) : BatchModeSimulator {
                     registerSet ~= registers[specifier];
                 }
                 return join(registerSet, "\n") ~ "\n";
+            case "instruction":
+                return format("%s\n", machineState.currentInstruction);
             case "program":
                 mem = machineState.program;
                 goto case;
@@ -104,11 +107,24 @@ final class Simulator(T) : BatchModeSimulator {
                 size_t begin;
                 size_t end;
 
+                if (parameters.length >= 2) {
+                    if (parameters[1][0 .. 2] == "0x") {
+                        string numeric = parameters[1][2 .. $];
+                        begin = parse!size_t(numeric, 16);
+                    } else {
+                        begin = to!size_t(parameters[1]);
+                    }
+                }
+
                 if (parameters.length == 2) {
-                    begin = end = to!size_t(parameters[1]);
-                } else if (parameters.length > 2) {
-                    begin = to!size_t(parameters[1]);
-                    end = to!size_t(parameters[2]);
+                    end = begin;
+                } else {
+                    if (parameters[2][0 .. 2] == "0x") {
+                        string numeric = parameters[2][2 .. $];
+                        end = parse!size_t(numeric, 16);
+                    } else {
+                        end = to!size_t(parameters[2]);
+                    }
                 }
 
                 if (begin > end) {
@@ -117,9 +133,9 @@ final class Simulator(T) : BatchModeSimulator {
 
                 string[] dataSlice;
                 foreach (idx, el; mem[begin .. end + 1]) {
-                    dataSlice ~= format("0x%06x 0x%02x", idx, el);
+                    dataSlice ~= format("0x%06x 0x%02x", idx + begin, el);
                 }
-                return join(dataSlice, "\n");
+                return join(dataSlice, "\n") ~ "\n";
             case "help":
             default :
                 return format("%(- %s %|\n%)\n", commands);
@@ -151,6 +167,7 @@ final class Simulator(T) : BatchModeSimulator {
             "run": "execute the program, ignoring breakpoints and further commands",
             "s": "shortcut for `step`",
             "step": "execute a single instruction",
+            "skip": "skip the next instruction",
             "continue": "execute the program until the next breakpoint",
             "set": "configure a setting, see `set help`",
             "show": "show information on the current state, see `show help`", 
@@ -172,6 +189,9 @@ final class Simulator(T) : BatchModeSimulator {
                 case "step":
                     step();
                     break;
+                case "skip":
+                    auto instr = machineState.fetchInstruction();
+                    return format("Skipping instruction: %s\n", instr);
                 case "continue":
                     continueUntilBreakpoint();
                     break;
@@ -196,12 +216,17 @@ final class Simulator(T) : BatchModeSimulator {
         StopWatch stopWatch;
         try {
             stopWatch.start();
-            while(step() != step()) {
+            size_t lastAddress, currentAddress = machineState.nextInstruction.address;
+            do {
                 if (withBreakpoints &&
-                        canFind(debuggerState.breakpoints, machineState.currentInstruction.token.lineNumber)) {
+                        canFind(debuggerState.breakpoints,
+                            machineState.nextInstruction.token.lineNumber)) {
                     break;
                 }
-            }
+                lastAddress = step();
+                currentAddress = machineState.nextInstruction.address;
+                writefln("last executed: %x, to be executed: %x", lastAddress, currentAddress);
+            } while(lastAddress != currentAddress);
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
             stopWatch.stop();
