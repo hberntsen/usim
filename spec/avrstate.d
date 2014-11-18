@@ -83,6 +83,10 @@ class AvrState : MachineState {
     ReferenceRegister!(ubyte)[32] valueRegisters;
     ReferenceRegister!(ubyte)[64] ioRegisters;
     private ReferenceRegister!ushort[string] _refregs;
+    enum size_t UDR = 0xC6;
+    enum size_t UCSRA = 0xC0;
+    enum size_t UDRE = 5;
+    enum size_t RAMPZ = 0x3c;
 
     invariant() {
         //As specified in the ATmega2560 manual
@@ -124,6 +128,8 @@ class AvrState : MachineState {
             ioRegisters[i] = new ReferenceRegister!ubyte(format("io:%x",
                         cast(size_t)(i + 0x20)), i + 0x40, data);
         }
+        //We are always done writing the byte
+        data[UCSRA] = data[UCSRA] | 1 << UDRE;
     }
     final {
 
@@ -1449,39 +1455,44 @@ class St : Instruction!AvrState {
     uint regr;
 
     this(in InstructionToken token) {
-      super(token);
-      if(token.parameters[0].length == 2) { //TODO: 'parsing' has to happen somewhere else, but is this general enough for base.d?
-        preinc = token.parameters[0][0] == '+';
-        predec = token.parameters[0][0] == '-';
-        if(preinc || predec)
-          refreg = token.parameters[0][1..$].dup;
-        else {
-          postinc = token.parameters[0][1] == '+';
-          postdec = token.parameters[0][1] == '-';
-          refreg = token.parameters[0][0..1].dup;
+        super(token);
+        if(token.parameters[0].length == 2) { //TODO: 'parsing' has to happen somewhere else, but is this general enough for base.d?
+            preinc = token.parameters[0][0] == '+';
+            predec = token.parameters[0][0] == '-';
+            if(preinc || predec)
+                refreg = token.parameters[0][1..$].dup;
+            else {
+                postinc = token.parameters[0][1] == '+';
+                postdec = token.parameters[0][1] == '-';
+                refreg = token.parameters[0][0..1].dup;
+            }
         }
-      }
-      else
-        refreg = token.parameters[0];
+        else
+            refreg = token.parameters[0];
 
-      regr = parseNumericRegister(token.parameters[1]);
+        regr = parseNumericRegister(token.parameters[1]);
     }
 
     override cycleCount callback(AvrState state) const {
-      if(preinc)
-        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
-      if(predec)
-        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+        if(preinc)
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
+        if(predec)
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
-      ushort addr = state.refregs[refreg];
-      enforce(addr < state.data.size, format("address: %x", addr));
-      state.data[addr] = state.valueRegisters[regr].value;
+        ushort addr = state.refregs[refreg];
+        enforce(addr < state.data.size, format("address: %x", addr));
+        state.data[addr] = state.valueRegisters[regr].value;
 
-      if(postinc)
-        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
-      if(postdec)
-        state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
-      return 1;
+        if(postinc)
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
+        if(postdec)
+            state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
+
+        if(addr == AvrState.UDR) {
+            write(cast(char)state.valueRegisters[regr].value);
+            stdout.flush();
+        }
+        return 1;
     }
 }
 
@@ -1498,28 +1509,30 @@ unittest {
     //state.zreg = 0x10ab;
 
     state.valueRegisters[0] = 0xdf;
-
     state.fetchInstruction().callback(state);
-
-    writeln("state: %x", state.data[0x10ab]);
-
     assert(state.data[0x10ab] == 0xdf);
 }
 
 /* Store direct to data space */
 class Sts : Instruction!AvrState {
-    uint address;
+    size_t dataAddr;
     uint regr;
 
     this(in InstructionToken token) {
-      super(token);
-      address = parseHex(token.parameters[0]);
-      regr = parseNumericRegister(token.parameters[1]);
+        super(token);
+        dataAddr = parseHex(token.parameters[0]);
+        regr = parseNumericRegister(token.parameters[1]);
     }
 
     override cycleCount callback(AvrState state) const {
-      state.data[address] = state.valueRegisters[regr].value;
-      return 2;
+        auto immutable value = state.valueRegisters[regr].value;
+        state.data[dataAddr] = value;
+
+        if(dataAddr == AvrState.UDR) {
+            write(cast(char)value);
+            stdout.flush();
+        }
+        return 2;
     }
 }
 
@@ -2481,33 +2494,6 @@ class Wdr : Instruction!AvrState {
     }
 }
 
-class WriteByte : Instruction!AvrState {
-    this(in InstructionToken tok) {
-        super(tok);
-    }
-
-    override cycleCount callback(AvrState state) const {
-        auto value = state.valueRegisters[24].bytes;
-        write(cast(string)(value));
-        stdout.flush();
-        return 0;
-    }
-}
-
-class WriteByteJmp : WriteByte {
-    const Ret ret;
-
-    this(in InstructionToken tok) {
-        super(tok);
-        ret = new Ret(tok);
-    }
-
-    override cycleCount callback(AvrState state) const {
-        super.callback(state);
-        ret.callback(state);
-        return 0;
-    }
-}
 unittest {
     auto state = new AvrState();
     state.valueRegisters[0].value = 0;
@@ -2646,8 +2632,6 @@ abstract class AvrFactory : MachineFactory {
             case "swap": return new Swap(tok);
             case "tst": return new Tst(tok);
             case "wdt": return new Wdr(tok);
-            case "write_byte": return new WriteByte(tok);
-            case "write_byte_jmp": return new WriteByteJmp(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
     }

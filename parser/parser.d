@@ -70,23 +70,6 @@ InstructionToken parseInstruction(in int lineNumber, in string line) {
         }
         parameters = split(matches[0], ", ");
     }
-    if (pieces.length == 5) {
-        r = ctRegex!(`;\s*0x[0-9a-f]* <write_byte>`);
-        matches = matchFirst(pieces[4], r);
-        if(!matches.empty) {
-            switch(instruction) {
-                case "call":
-                    instruction = "write_byte";
-                    break;
-                case "jmp":
-                    instruction = "write_byte_jmp";
-                    break;
-                default:
-                    throw new Exception("write_byte not supported with
-                            instruction" ~ instruction);
-            }
-        }
-    }
     return new InstructionToken(lineNumber, address, rawBytes, instruction, parameters);
 }
 
