@@ -1759,6 +1759,68 @@ class Mulsu : Instruction!AvrState {
     }
 }
 
+class Fmul : Mul {
+
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        super.callback(state);
+	state.valueRegisters[1].value = cast(ubyte)(state.valueRegisters[1] << 1 | state.valueRegisters[0] >> 7);
+	state.valueRegisters[0].value = cast(ubyte)(state.valueRegisters[0] << 1);
+	return 2;
+    }
+}
+unittest {
+    auto state = new AvrState();
+    state.valueRegisters[3] = 144; //1,125
+    state.valueRegisters[5] = 58; //0,453125
+    auto fmul = new Fmul(new InstructionToken(0, 0, [], "fmul", ["r3", "r5"]));
+    auto cycles = fmul.callback(state);
+    assert(cycles == 2);
+    assert(state.valueRegisters[0].value == 0x40);
+    assert(state.valueRegisters[1].value == 0x41);
+    assert(!state.sreg.Z);
+    assert(!state.sreg.C);
+
+    state.valueRegisters[3].value = 0;
+    cycles = fmul.callback(state);
+    assert(cycles == 2);
+    assert(state.valueRegisters[0].value == 0);
+    assert(state.valueRegisters[1].value == 0);
+    assert(state.sreg.Z);
+    assert(!state.sreg.C);
+}
+
+class Fmuls : Muls {
+
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        super.callback(state);
+	state.valueRegisters[1].value = cast(ubyte)(state.valueRegisters[1] << 1 & state.valueRegisters[0] >> 7);
+	state.valueRegisters[0].value = cast(ubyte)(state.valueRegisters[0] << 1);
+	return 2;
+    }
+}
+
+class Fmulsu : Mulsu {
+
+    this(in InstructionToken token) {
+        super(token);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        super.callback(state);
+	state.valueRegisters[1].value = cast(ubyte)(state.valueRegisters[1] << 1 & state.valueRegisters[0] >> 7);
+	state.valueRegisters[0].value = cast(ubyte)(state.valueRegisters[0] << 1);
+	return 2;
+    }
+}
+
 class Neg : Instruction!AvrState {
     uint regd;
 
