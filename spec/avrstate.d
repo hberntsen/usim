@@ -1393,9 +1393,7 @@ class Lpm : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         ushort z = state.zreg.value;
-        ushort offset = (z & 0x0001);
-
-        ubyte value = state.program[z + (offset == 0 ? 1 : 0)];
+        ubyte value = state.program[z];
 
         state.valueRegisters[regd].value = value;
 
