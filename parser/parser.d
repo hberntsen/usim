@@ -85,7 +85,7 @@ string parseSection(in string line) {
 InstructionToken[] parse(File file, out ubyte[] data) {
     InstructionToken[] instructions;
     instructions.length = 100;
-    int lineNumber = 0;
+    int lineNumber = 1;
     int i = 0;
     string line;
     string currentSection;
