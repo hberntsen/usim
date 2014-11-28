@@ -1206,7 +1206,7 @@ class Ijmp : Instruction!AvrState {
     this(in InstructionToken token) { super(token); }
 
     override cycleCount callback(AvrState state) const {
-        state.jumpIndex(state.zreg);
+        state.jump(state.zreg*2);
         return 2;
     }
 }
