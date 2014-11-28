@@ -1581,7 +1581,7 @@ class Reti : Instruction!AvrState {
 }
 
 class Rjmp : Instruction!AvrState {
-    size_t dest;
+    long dest;
 
     this(in InstructionToken token) {
         super(token);
@@ -1975,12 +1975,12 @@ unittest {
 }
 
 class Rcall : Instruction!AvrState {
-    size_t dest;
+    long dest;
 
     this(in InstructionToken token) {
         super(token);
         //+2 since this instruction is 2 bytes
-        dest = address + 2 + cast(ushort)(parseInt(token.parameters[0]));
+        dest = address + 2 + parseInt(token.parameters[0]);
     }
 
     override void optimize(in InstructionsWrapper!AvrState iw) {
