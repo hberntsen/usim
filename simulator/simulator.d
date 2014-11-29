@@ -1,6 +1,7 @@
 module simulator.simulator;
 
 import std.stdio;
+import std.regex;
 import std.datetime : StopWatch, TickDuration;
 import machine.state;
 import spec.base;
@@ -32,6 +33,63 @@ final class Simulator(T) : BatchModeSimulator {
     this(T initialState) {
         this.machineState = initialState;
         this.simulatorState = SimulatorState(0);
+    }
+
+    private string handleShowCommand(string[] parameters) {
+        if (parameters.length == 0) {
+            string[] stringifiedRegisters;
+            foreach (idx, register; machineState.valueRegisters) {
+                stringifiedRegisters ~= format("r%d: 0x%02x", idx,
+                        register.value);
+            }
+            // todo: abstract this to the machinestate somewhere
+            return format(
+                    "cycles:\t%d\nregisters:\t%s\n%s\n%s\n",
+                    simulatorState.cycles,
+                    stringifiedRegisters,
+                    machineState.refregs,
+                    machineState.currentInstruction,
+            );
+        }
+        return "Nothing to show yet\n";
+    }
+
+    public string handleDebugCommand(string command) {
+        string[] commands = [
+            "run", "s", "step", "continue", "set", "show", "help", "?"
+        ];
+        auto commandAbbrev = abbrev(commands);
+
+        string[] parts = split(chomp(command));
+        if (parts.length < 1) {
+            return "No command specified\n";
+        }
+
+        if (parts[0] in commandAbbrev) {
+            switch(commandAbbrev[parts[0]]) {
+                case "run":
+                    break;
+                case "s":
+                case "step":
+                    step();
+                    break;
+                case "continue":
+                    break;
+                case "set":
+                    break;
+                case "show":
+                    return handleShowCommand(parts[1..$]);
+                case "help":
+                case "?":
+                    break;
+                default:
+                    assert(false);
+            }
+        } else {
+            return "Unknown command: " ~ parts[0] ~ "\n";
+        }
+
+        return "OK\n";
     }
 
     public SimulatorState run() {
