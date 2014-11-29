@@ -92,7 +92,7 @@ final class Simulator(T) : BatchModeSimulator {
                 }
                 return join(registerSet, "\n") ~ "\n";
             case "instruction":
-                return format("%s\n", machineState.currentInstruction);
+                return format("%s\n", machineState.nextInstruction);
             case "program":
                 mem = machineState.program;
                 goto case;
@@ -128,7 +128,7 @@ final class Simulator(T) : BatchModeSimulator {
                 }
 
                 if (begin > end) {
-                    return "Begin greater than end, please try again";
+                    return "Begin greater than end, please try again\n";
                 }
 
                 string[] dataSlice;
@@ -184,6 +184,7 @@ final class Simulator(T) : BatchModeSimulator {
         if (parts[0] in commandAbbrev) {
             switch(commandAbbrev[parts[0]]) {
                 case "run":
+                    run(false);
                     break;
                 case "s":
                 case "step":
@@ -225,7 +226,7 @@ final class Simulator(T) : BatchModeSimulator {
                 }
                 lastAddress = step();
                 currentAddress = machineState.nextInstruction.address;
-                writefln("last executed: %x, to be executed: %x", lastAddress, currentAddress);
+                //writefln("last executed: %x, to be executed: %x", lastAddress, currentAddress);
             } while(lastAddress != currentAddress);
             stopWatch.stop();
         } catch (spec.base.EOFException e) {
