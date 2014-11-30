@@ -5,6 +5,7 @@ import std.getopt;
 
 import parser.parser;
 import spec.atmega2560;
+import spec.atmega88;
 import machine.state;
 import simulator.simulator;
 
@@ -14,6 +15,7 @@ void main(string[] args) {
     string machine = "atmega2560";
     getopt(args,
             "file", &filename,
+            "mcu", &machine,
             "nostats", &nostats);
 
     File file;
@@ -29,9 +31,7 @@ void main(string[] args) {
     file.close();
 
     auto factory = machineFactories[machine];
-    AtMega2560State state = cast(AtMega2560State)(factory.createState(instructions, data));
-
-    auto sim = new Simulator!AtMega2560State(state);
+    auto sim = factory.createBatchModeSimulator(instructions,data);
 
     auto simulatorState = sim.run();
     if(!nostats) {

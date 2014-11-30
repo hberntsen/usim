@@ -10,6 +10,7 @@ import machine.state;
 import std.bitmanip;
 import core.bitop;
 import parser.parser : InstructionToken;
+import simulator.simulator;
 
 final class Sreg : ReferenceRegister!ubyte {
     public bool getBit(uint bitNum) const {
@@ -171,6 +172,33 @@ class AvrState : MachineState {
 
         void relativeJump(in int instructionOffset) {
             instructions.relativeJump(instructionOffset);
+        }
+
+        /// The program counter points to the instruction after this, push that
+        ///on the stack
+        void pushProgramCounter(AvrChipSpec c)() {
+            size_t pc = programCounter;
+            if(c.pcSizeBytes == 2) {
+                ubyte[2] pcBytes = [cast(ubyte)(pc), cast(ubyte)(pc >>> 8)];
+                data[stackPointer.value -1 .. stackPointer.value+1] = pcBytes;
+                stackPointer.value = cast(ushort)(stackPointer.value - 2);
+            } else {
+                ubyte[3] pcBytes = [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
+                data[stackPointer.value -2 .. stackPointer.value+1] = pcBytes;
+                stackPointer.value = cast(ushort)(stackPointer.value - 3);
+            }
+        }
+
+        void popProgramCounter(AvrChipSpec c)() {
+            if(c.pcSizeBytes == 2) {
+                size_t newPc = data[stackPointer + 1] + (data[stackPointer + 2] << 8);
+                stackPointer.value = cast(ushort)(stackPointer.value + 2);
+                jump(newPc * 2);
+            } else {
+                size_t newPc = data[stackPointer + 1] + (data[stackPointer + 2] << 8)+ (data[stackPointer + 3] << 16);
+                stackPointer.value = cast(ushort)(stackPointer.value + 3);
+                jump(newPc * 2);
+            }
         }
 
         void setSregLogical(ubyte result) {
@@ -720,7 +748,7 @@ class Bst : Instruction!AvrState {
 }
 
 /** Long Call to a Subroutine */
-class Call : Instruction!AvrState {
+class Call(AvrChipSpec chip) : Instruction!AvrState {
     size_t dest;
 
     this(in InstructionToken token) {
@@ -733,27 +761,33 @@ class Call : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        //Program counter points to next instruction, we want that address on
-        //the stack
-        size_t pc = state.programCounter;
-        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
-            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
-
+        state.pushProgramCounter!chip();
         state.jumpIndex(dest);
-
-        return 5;
+        if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
+            if(chip.pcSizeBytes == 3) {
+                return 4;
+            } else {
+                return 3;
+            }
+        } else {
+            if(chip.pcSizeBytes == 3) {
+                return 5;
+            } else {
+                return 4;
+            }
+        }
     }
 }
 
 ///Tests both call and ret
 unittest {
     auto state = new AvrState();
+    enum AvrChipSpec spec = AvrChipSpec();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
     //call jumps to the ret instruction
-    auto call = new Call(new InstructionToken(0,2,[],"call",["0x8"]));
+    auto call = new Call!spec(new InstructionToken(0,2,[],"call",["0x8"]));
     auto nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
-    auto ret = new Ret(new InstructionToken(0,8,[],"ret",[]));
+    auto ret = new Ret!spec(new InstructionToken(0,8,[],"ret",[]));
     state.setInstructions([nop0,call,nop1,ret]);
 
     ushort spInit = state.stackPointer.value;
@@ -1045,7 +1079,7 @@ class Dec : Instruction!AvrState {
     }
 }
 
-class Eicall : Instruction!AvrState {
+class Eicall(AvrChipSpec chip) : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
     }
@@ -1068,17 +1102,21 @@ class Eicall : Instruction!AvrState {
 
         state.jump(newPc*2);
 
-        return 4; // NOTE: 3 on XMEGA
+        if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
+            return 3;
+        }
+        return 4;
     }
 }
 
 unittest {
     auto state = new AvrState();
+    enum AvrChipSpec spec = AvrChipSpec();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
     //eicall jumps to the ret instruction
-    auto eicall = new Eicall(new InstructionToken(0,2,[],"eicall",[]));
+    auto eicall = new Eicall!spec(new InstructionToken(0,2,[],"eicall",[]));
     auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
-    auto ret = new Ret(new InstructionToken(0,0x211000,[],"ret",[]));
+    auto ret = new Ret!spec(new InstructionToken(0,0x211000,[],"ret",[]));
     state.setInstructions([nop0,eicall,nop1,ret]);
     state.zreg.value = cast(ushort)(0x8800);
     state.setIoRegisterByIo(AvrState.RAMPZ, cast(ubyte)(0x10));
@@ -1183,21 +1221,27 @@ class Eor : Instruction!AvrState {
     }
 }
 
-class Icall : Instruction!AvrState {
+class Icall(AvrChipSpec chip) : Instruction!AvrState {
 
     this(in InstructionToken token) { super(token); }
 
     override cycleCount callback(AvrState state) const {
-        //Program counter points to next instruction, we want that address on
-        //the stack
-        size_t pc = state.programCounter;
-        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
-            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
-
+        state.pushProgramCounter!chip();
         state.jumpIndex(state.zreg);
 
-        return 4; //depends on PC size and model, 16-bit PC and xmega is faster
+        if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
+            if(chip.pcSizeBytes == 3) {
+                return 3;
+            } else {
+                return 2;
+            }
+        } else {
+            if(chip.pcSizeBytes == 3) {
+                return 4;
+            } else {
+                return 3;
+            }
+        }
     }
 }
 
@@ -1280,7 +1324,7 @@ class Inc : Instruction!AvrState {
     }
 }
 
-class Ld : Instruction!AvrState {
+class Ld(AvrChipSpec chip) : Instruction!AvrState {
     bool predec, postinc;
     uint regd;
     string refreg;
@@ -1314,8 +1358,20 @@ class Ld : Instruction!AvrState {
         if(postinc) {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
         }
-        // todo: cycles can differ
-        return 2;
+
+        if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
+            if(predec)
+                return 3;
+            else
+                return 2; //we only access internal SRAM
+        } else {
+            if(predec)
+                return 3;
+            else if(postinc)
+                return 2;
+            else
+                return 1;
+        }
     }
 }
 
@@ -1449,7 +1505,7 @@ class Out : Instruction!AvrState {
 }
 
 /* Store indirect from register to data space using index */
-class St : Instruction!AvrState {
+class St(AvrChipSpec chip) : Instruction!AvrState {
     bool preinc, predec, postinc, postdec; //Probably not the most beautiful way...
     string refreg;
     uint regr;
@@ -1492,13 +1548,17 @@ class St : Instruction!AvrState {
             write(cast(char)state.valueRegisters[regr].value);
             stdout.flush();
         }
-        return 1;
+        if(chip.chipType != AvrChipSpec.ChipType.OTHER && !predec) {
+            return 1;
+        }
+        return 2;
     }
 }
 
 unittest {
     auto state = new AvrState();
-    auto st = new St(new InstructionToken(0, 0, [], "st", ["Z", "r0"]));
+    enum AvrChipSpec spec = AvrChipSpec();
+    auto st = new St!spec(new InstructionToken(0, 0, [], "st", ["Z", "r0"]));
     state.setInstructions([st]);
 
     state.valueRegisters[30] = 0xab;
@@ -1548,43 +1608,38 @@ class Nop : Instruction!AvrState {
     }
 }
 
-class Ret : Instruction!AvrState {
+class Ret(AvrChipSpec chip) : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
     }
 
     override cycleCount callback(AvrState state) const {
-        uint newPc = state.data[state.stackPointer + 1] +
-            (state.data[state.stackPointer + 2] << 8)+
-            (state.data[state.stackPointer + 3] << 16);
-
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value + 3);
-        state.jump(newPc * 2);
-
-        return 5;
+        state.popProgramCounter!chip();
+        if(chip.pcSizeBytes == 2) {
+            return 4;
+        } else {
+            return 5;
+        }
     }
 }
 
-class Reti : Instruction!AvrState {
+class Reti(AvrChipSpec chip) : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
     }
 
     override cycleCount callback(AvrState state) const {
-        uint newPc = state.data[state.stackPointer + 1] +
-            (state.data[state.stackPointer + 2] << 8)+
-            (state.data[state.stackPointer + 3] << 16);
-
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value + 3);
-        state.jump(newPc * 2);
-
+        state.popProgramCounter!chip();
         state.sreg.I = true;
-
-        return 5; //less on devices with a 16-bit PC
+        if(chip.pcSizeBytes == 2) {
+            return 4;
+        } else {
+            return 5;
+        }
     }
 }
 
-class Rjmp : Instruction!AvrState {
+class Rjmp(AvrChipSpec chip) : Instruction!AvrState {
     long dest;
 
     this(in InstructionToken token) {
@@ -1594,7 +1649,7 @@ class Rjmp : Instruction!AvrState {
         // bytes
         assert(jumpOffset <= 2000*2);
         assert(-2000*2 <= jumpOffset);
-        dest = this.address + 2 + jumpOffset;
+        dest = (address + 2 + jumpOffset + 2*chip.pcMax) % (chip.pcMax*2);
     }
 
     override void optimize(in InstructionsWrapper!AvrState instructions) {
@@ -1608,9 +1663,10 @@ class Rjmp : Instruction!AvrState {
 }
 unittest {
     auto state = new AvrState();
-    auto rjmp = new Rjmp(new InstructionToken(0,0,[],"rjmp",[".+2"]));
+    enum AvrChipSpec spec = AvrChipSpec();
+    auto rjmp = new Rjmp!spec(new InstructionToken(0,0,[],"rjmp",[".+2"]));
     auto nop1 = new Nop(new InstructionToken(0,2,[],"nop1",[]));
-    auto rjmp2 = new Rjmp(new InstructionToken(0,4,[],"rjmp",[".-4"]));
+    auto rjmp2 = new Rjmp!spec(new InstructionToken(0,4,[],"rjmp",[".-4"]));
     state.setInstructions([rjmp,nop1,rjmp2]);
 
     state.fetchInstruction(); // fetch rjmp
@@ -1978,13 +2034,13 @@ unittest {
     assert(state.valueRegisters[1].value == 42);
 }
 
-class Rcall : Instruction!AvrState {
+class Rcall(AvrChipSpec chip) : Instruction!AvrState {
     long dest;
 
     this(in InstructionToken token) {
         super(token);
         //+2 since this instruction is 2 bytes
-        dest = address + 2 + parseInt(token.parameters[0]);
+        dest = (address + 2 + parseInt(token.parameters[0]) + 2*chip.pcMax) % (chip.pcMax * 2);
     }
 
     override void optimize(in InstructionsWrapper!AvrState iw) {
@@ -1992,24 +2048,32 @@ class Rcall : Instruction!AvrState {
     }
 
     override cycleCount callback(AvrState state) const {
-        size_t pc = state.programCounter;
-        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
-            [cast(ubyte)(pc), cast(ubyte)(pc >>> 8), cast(ubyte)(pc >>> 16)];
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
-
+        state.pushProgramCounter!chip();
         state.jumpIndex(dest);
-
-        return 4;
+        if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
+            if(chip.pcSizeBytes == 3) {
+                return 3;
+            } else {
+                return 2;
+            }
+        } else {
+            if(chip.pcSizeBytes == 3) {
+                return 4;
+            } else {
+                return 3;
+            }
+        }
     }
 }
 
 unittest {
     auto state = new AvrState();
+    enum AvrChipSpec spec = AvrChipSpec();
     auto nop0 = new Nop(new InstructionToken(0,0,[],"nop",[]));
     //rcall jumps to the ret instruction
-    auto rcall = new Rcall(new InstructionToken(0,2,[],"rcall",[".+2"]));
+    auto rcall = new Rcall!spec(new InstructionToken(0,2,[],"rcall",[".+2"]));
     auto nop1 = new Nop(new InstructionToken(0,4,[],"nop",[]));
-    auto ret = new Ret(new InstructionToken(0,6,[],"ret",[]));
+    auto ret = new Ret!spec(new InstructionToken(0,6,[],"ret",[]));
     state.setInstructions([nop0,rcall,nop1,ret]);
 
     ushort spInit = state.stackPointer.value;
@@ -2422,7 +2486,7 @@ abstract class SkipInstruction :Instruction!AvrState {
     }
 }
 
-class Sbi : Instruction!AvrState {
+class Sbi(AvrChipSpec chip) : Instruction!AvrState {
     size_t address;
     uint bit;
 
@@ -2436,11 +2500,13 @@ class Sbi : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value | cast(ubyte)(1 << bit);
-        return 2; // 1 on xmega and tinyavr
+        if(chip.chipType == AvrChipSpec.ChipType.OTHER)
+            return 2;
+        return 1;
     }
 }
 
-class Sbic : SkipInstruction {
+class Sbic(AvrChipSpec chip) : SkipInstruction {
     size_t address;
     int bit;
 
@@ -2449,6 +2515,15 @@ class Sbic : SkipInstruction {
         address = parseHex(token.parameters[0]);
         bit = parseInt(token.parameters[1]);
         assert(0 <= bit && bit <= 7);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        auto cycles = super.callback(state);
+        if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
+            return cycles;
+        } else {
+            return cycles + 1;
+        }
     }
 
     override bool shouldSkip(AvrState state) const {
@@ -2457,7 +2532,7 @@ class Sbic : SkipInstruction {
     }
 }
 
-class Sbis : SkipInstruction {
+class Sbis(AvrChipSpec chip) : SkipInstruction {
     size_t address;
     int bit;
 
@@ -2468,13 +2543,22 @@ class Sbis : SkipInstruction {
         assert(0 <= bit && bit <= 7);
     }
 
+    override cycleCount callback(AvrState state) const {
+        auto cycles = super.callback(state);
+        if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
+            return cycles;
+        } else {
+            return cycles + 1;
+        }
+    }
+
     override bool shouldSkip(AvrState state) const {
         size_t regValue = state.getIoRegisterByIo(address).value;
         return bt(&regValue,bit) > 0;
     }
 }
 
-class Sbrc : SkipInstruction {
+class Sbrc(AvrChipSpec chip) : SkipInstruction {
     uint register;
     int bit;
 
@@ -2492,7 +2576,7 @@ class Sbrc : SkipInstruction {
 }
 
 /** SBRS - Skip if Bit in Register is Set */
-class Sbrs : SkipInstruction {
+class Sbrs(AvrChipSpec chip) : SkipInstruction {
     uint register;
     int bit;
 
@@ -2560,8 +2644,9 @@ class Wdr : Instruction!AvrState {
 
 unittest {
     auto state = new AvrState();
+    enum AvrChipSpec spec = AvrChipSpec();
     state.valueRegisters[0].value = 0;
-    auto sbrs = new Sbrs(new InstructionToken(0,0,[],"sbrs",["r0","0"]));
+    auto sbrs = new Sbrs!spec(new InstructionToken(0,0,[],"sbrs",["r0","0"]));
     auto nop1 = new Nop(new InstructionToken(0,2,[],"nop1",[]));
     auto nop2 = new Nop(new InstructionToken(0,4,[],"nop2",[]));
     state.setInstructions([sbrs,nop1,nop2]);
@@ -2578,8 +2663,8 @@ unittest {
     assert(state.programCounter == 2);
 
     //Test skipping 4byte instruction with bit 7
-    sbrs = new Sbrs(new InstructionToken(0,0,[],"sbrs",["r0","7"]));
-    auto call = new Call(new InstructionToken(0,2,[],"call",["0x0"]));
+    sbrs = new Sbrs!spec(new InstructionToken(0,0,[],"sbrs",["r0","7"]));
+    auto call = new Call!spec(new InstructionToken(0,2,[],"call",["0x0"]));
     nop1 = new Nop(new InstructionToken(0,6,[],"nop",[]));
     state.setInstructions([sbrs,call,nop1]);
 
@@ -2589,122 +2674,81 @@ unittest {
     assert(state.programCounter == 3);
 }
 
+struct AvrChipSpec {
+    //todo:reduced core
+    enum ChipType { OTHER=0, XMEGA=1};
+    uint pcMax = 256 * 1024 / 2;
+    ChipType chipType = ChipType.OTHER;
+
+    this(uint pcMax, ChipType chipType) {
+        this.pcMax = pcMax;
+        this.chipType = chipType;
+    }
+
+    size_t pcSizeBytes() const
+    {
+        auto t = pcMax > (2^^16) ? 3 : 2;
+        return t;
+    }
+}
+
 abstract class AvrFactory : MachineFactory {
-    static Instruction!AvrState createInstruction(AvrState)(in InstructionToken tok) {
+
+    static protected string instructionsSwitchCode(string[] instructionNames) {
+        string x;
+        foreach(string name; instructionNames) {
+            x ~= "case \"" ~ name.toLower ~ "\" : return new " ~
+                name.capitalize ~ "(tok);\n";
+        }
+        return x;
+    }
+
+    static protected string templatedInstructionsSwitchCode(string[] instructionNames) {
+        string x;
+        foreach(string name; instructionNames) {
+            x ~= "case \"" ~ name.toLower ~ "\" : return new " ~
+                name.capitalize ~ "!spec(tok);\n";
+        }
+        return x;
+    }
+
+    static Instruction!AvrState createInstruction(AvrChipSpec spec)(in InstructionToken tok) {
+        //Generated using
+        //r! awk '/^class ([A-Z][a-z]*)\s*:.*Instruction/ {printf "\"\%s\", ", $2}' %
+        // in vim
+        enum string[] instructionNames = [
+            "Add", "Adc", "Adiw", "And", "Andi", "Asr", "Bld", "Brbc", "Brbs", "Brcc",
+            "Brcs", "Break", "Breq", "Brge", "Brhc", "Brhs", "Bric", "Bris", "Brlt",
+            "Brmi", "Brne", "Brpl", "Brtc", "Brts", "Brvc", "Brvs", "Bst", "Cbi",
+            "Cbr", "Clc", "Clh", "Cli", "Cln", "Clr", "Cls", "Clt", "Clv", "Clz",
+            "Com", "Cp", "Cpc", "Cpi", "Cpse", "Dec", "Eijmp", "Elpm", "Eor", "Ijmp",
+            "Jmp", "In", "Inc", "Ldd", "Ldi", "Lds", "Lpm", "Lsr", "Out", "Sts", "Nop",
+            "Mov", "Movw", "Mul", "Muls", "Mulsu", "Neg", "Or", "Ori", "Pop",
+            "Push", "Ror", "Sbc", "Sbci", "Sbiw", "Sbr", "Sec", "Seh", "Sei", "Sen",
+            "Ser", "Ses", "Set", "Sev", "Sez", "Sleep", "Std", "Sub", "Subi", "Swap",
+            "Tst", "Wdr"];
+        //r! awk '/^class ([A-Z][a-z]*)\s*\(AvrChipSpec.*:.*Instruction/ {printf "\"\%s\", ", $2}' %
+        //'<,'>s/(AvrChipSpec//g
+        enum string[] templatedInstructionNames = [
+            "Call", "Eicall", "Icall", "Ld", "St", "Ret", "Reti", "Rcall",
+            "Rjmp", "Sbi", "Sbic", "Sbis", "Sbrc", "Sbrs"];
+
         switch (tok.name) {
-            case "adc" : return new Adc(tok);
-            case "add" : return new Add(tok);
-            case "adiw": return new Adiw(tok);
-            case "and": return new And(tok);
-            case "andi": return new Andi(tok);
-            case "asr": return new Asr(tok);
-            case "bld": return new Bld(tok);
-            case "brbc": return new Brbc(tok);
-            case "brbs": return new Brbs(tok);
-            case "brcc": return new Brcc(tok);
-            case "brcs": return new Brcs(tok);
-            case "break": return new Break(tok);
-            case "breq": return new Breq(tok);
-            case "brge": return new Brge(tok);
-            case "brhc": return new Brhc(tok);
-            case "brhs": return new Brhs(tok);
-            case "bric": return new Bric(tok);
-            case "bris": return new Bris(tok);
-            case "brlt": return new Brlt(tok);
-            case "brmi": return new Brmi(tok);
-            case "brne": return new Brne(tok);
-            case "brpl": return new Brpl(tok);
-            case "brtc": return new Brtc(tok);
-            case "brts": return new Brts(tok);
-            case "brvc": return new Brvc(tok);
-            case "brvs": return new Brvs(tok);
-            case "bst": return new Bst(tok);
-            case "call": return new Call(tok);
-            case "cbi": return new Cbi(tok);
-            case "cbr": return new Cbr(tok);
-            case "clc": return new Clc(tok);
-            case "clh": return new Clh(tok);
-            case "cli": return new Cli(tok);
-            case "cln": return new Cln(tok);
-            case "clr": return new Clr(tok);
-            case "cls": return new Cls(tok);
-            case "clt": return new Clt(tok);
-            case "clv": return new Clv(tok);
-            case "clz": return new Clz(tok);
-            case "com": return new Com(tok);
-            case "cp": return new Cp(tok);
-            case "cpc": return new Cpc(tok);
-            case "cpi": return new Cpi(tok);
-            case "cpse": return new Cpse(tok);
-            case "dec": return new Dec(tok);
-            case "eicall": return new Eicall(tok);
-            case "eijmp": return new Eijmp(tok);
-            case "elpm": return new Elpm(tok);
-            case "eor": return new Eor(tok);
-            case "icall": return new Icall(tok);
-            case "ijmp": return new Ijmp(tok);
-            case "in": return new In(tok);
-            case "inc": return new Inc(tok);
-            case "jmp": return new Jmp(tok);
-            case "ld": return new Ld(tok);
-            case "ldd": return new Ldd(tok);
-            case "ldi": return new Ldi(tok);
-            case "lds": return new Lds(tok);
-            case "lpm": return new Lpm(tok);
-            case "lsr": return new Lsr(tok);
-            case "mov": return new Mov(tok);
-            case "movw": return new Movw(tok);
-            case "mul": return new Mul(tok);
-            case "muls": return new Muls(tok);
-            case "mulsu": return new Mulsu(tok);
-            case "neg": return new Neg(tok);
-            case "nop": return new Nop(tok);
-            case "or": return new Or(tok);
-            case "ori": return new Ori(tok);
-            case "out": return new Out(tok);
-            case "pop": return new Pop(tok);
-            case "push": return new Push(tok);
-            case "rcall": return new Rcall(tok);
-            case "ret": return new Ret(tok);
-            case "reti": return new Reti(tok);
-            case "rjmp": return new Rjmp(tok);
-            case "ror": return new Ror(tok);
-            case "sbc": return new Sbc(tok);
-            case "sbci": return new Sbci(tok);
-            case "sbi": return new Sbi(tok);
-            case "sbic": return new Sbic(tok);
-            case "sbis": return new Sbis(tok);
-            case "sbiw": return new Sbiw(tok);
-            case "sbr": return new Sbr(tok);
-            case "sbrc": return new Sbrc(tok);
-            case "sbrs": return new Sbrs(tok);
-            case "sec": return new Sec(tok);
-            case "seh": return new Seh(tok);
-            case "sei": return new Sei(tok);
-            case "sen": return new Sen(tok);
-            case "ser": return new Ser(tok);
-            case "ses": return new Ses(tok);
-            case "set": return new Set(tok);
-            case "sev": return new Sev(tok);
-            case "sez": return new Sez(tok);
-            case "sleep": return new Sleep(tok);
-            case "st": return new St(tok);
-            case "std": return new Std(tok);
-            case "sts": return new Sts(tok);
-            case "sub": return new Sub(tok);
-            case "subi": return new Subi(tok);
-            case "swap": return new Swap(tok);
-            case "tst": return new Tst(tok);
-            case "wdt": return new Wdr(tok);
+            mixin(instructionsSwitchCode(instructionNames));
+            mixin(templatedInstructionsSwitchCode(templatedInstructionNames));
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
     }
 
-    static Instruction!AvrState[] createInstructions(in InstructionToken[] tokens) {
+    static Instruction!AvrState[] createInstructions(AvrChipSpec spec)(in InstructionToken[] tokens) {
         Instruction!AvrState[] instructions = [];
         foreach (tok; tokens) {
-            instructions ~= createInstruction!AvrState(tok);
+            instructions ~= createInstruction!spec(tok);
         }
         return instructions;
+    }
+
+    override BatchModeSimulator createBatchModeSimulator(in InstructionToken[] tokens, in ubyte[] data) const {
+        return new Simulator!AvrState(cast(AvrState)createState(tokens, data));
     }
 }

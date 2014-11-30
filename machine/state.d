@@ -7,6 +7,7 @@ import std.system;
 import std.string;
 import spec.base;
 import parser.parser : InstructionToken;
+import simulator.simulator;
 
 abstract class Register
 {
@@ -162,6 +163,7 @@ interface MachineState {
 
 abstract class MachineFactory {
     public MachineState createState(in InstructionToken[] token, in ubyte[] data) const;
+    public BatchModeSimulator createBatchModeSimulator(in InstructionToken[] token, in ubyte[] data) const;
 }
 
 MachineFactory[string] machineFactories;

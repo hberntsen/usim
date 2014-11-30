@@ -21,8 +21,11 @@ struct SimulatorState {
     }
 }
 
-//Input: initial machine state (code is part of the machine state)
-final class Simulator(T) {
+interface BatchModeSimulator {
+    SimulatorState run();
+}
+
+final class Simulator(T) : BatchModeSimulator {
     T machineState;
     SimulatorState simulatorState;
 
@@ -92,7 +95,8 @@ unittest {
             ["r2", "0xAA"]);
     InstructionToken tok3 = new InstructionToken(3, 0x04, [0x02, 0xc0], "rjmp",
             [".-2"]);
-    Instruction!(AvrState)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp(tok3)];
+    enum AvrChipSpec cs = AvrChipSpec();
+    Instruction!(AvrState)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp!cs(tok3)];
 
     state.setInstructions(instrs);
     auto simstate = sim.run();
