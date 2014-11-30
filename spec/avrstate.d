@@ -1359,18 +1359,20 @@ class Ldi : Instruction!AvrState {
 
 /* Load direct from data space */
 class Lds : Instruction!AvrState {
-    uint regd;
-    uint address;
+    private immutable uint regd;
+    private immutable uint address;
+    private immutable cycleCount cycles;
 
     this(in InstructionToken token) {
       super(token);
       regd = parseNumericRegister(token.parameters[0]);
       address = parseHex(token.parameters[1]);
+      cycles = token.raw.length == 2 ? 1 : 2;
     }
 
     override cycleCount callback(AvrState state) const {
       state.valueRegisters[regd].value = state.data[address];
-      return 2;
+      return cycles;
     }
 }
 
@@ -1513,13 +1515,15 @@ unittest {
 
 /* Store direct to data space */
 class Sts : Instruction!AvrState {
-    size_t dataAddr;
-    uint regr;
+    private immutable size_t dataAddr;
+    private immutable uint regr;
+    private immutable cycleCount cycles;
 
     this(in InstructionToken token) {
         super(token);
         dataAddr = parseHex(token.parameters[0]);
         regr = parseNumericRegister(token.parameters[1]);
+        cycles = token.raw.length == 2 ? 1 : 2;
     }
 
     override cycleCount callback(AvrState state) const {
@@ -1530,7 +1534,7 @@ class Sts : Instruction!AvrState {
             write(cast(char)value);
             stdout.flush();
         }
-        return 2;
+        return cycles;
     }
 }
 
