@@ -5,7 +5,6 @@ import std.getopt;
 
 import parser.parser;
 import spec.atmega2560;
-import spec.atmega88;
 import machine.state;
 import simulator.simulator;
 

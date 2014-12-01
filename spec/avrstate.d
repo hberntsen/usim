@@ -565,6 +565,18 @@ class Brcs : RelativeBranchInstruction {
     }
 }
 
+class Brlo : Brcs {
+    this(in InstructionToken token) {
+        super(token);
+    }
+}
+
+class Brsh : Brcc {
+    this(in InstructionToken token) {
+        super(token);
+    }
+}
+
 class Break : Instruction!AvrState {
     this(in InstructionToken token) {
         super(token);
@@ -1396,6 +1408,57 @@ class Ldd : Instruction!AvrState {
     }
 }
 
+class Lac : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        enforce(token.parameters[0] == "Z");
+        regd = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        size_t addr = state.refregs["Z"].value;
+        state.data[addr] = (0xff - state.valueRegisters[regd].value) & state.data[addr];
+        state.valueRegisters[regd].value = state.data[addr];
+        return 2;
+    }
+}
+
+class Las : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        enforce(token.parameters[0] == "Z");
+        regd = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        size_t addr = state.refregs["Z"].value;
+        state.data[addr] = state.valueRegisters[regd].value ^ state.data[addr];
+        state.valueRegisters[regd].value = state.data[addr];
+        return 2;
+    }
+}
+
+class Lat : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        enforce(token.parameters[0] == "Z");
+        regd = parseNumericRegister(token.parameters[1]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        size_t addr = state.refregs["Z"].value;
+        state.data[addr] = state.valueRegisters[regd].value | state.data[addr];
+        state.valueRegisters[regd].value = state.data[addr];
+        return 2;
+    }
+}
+
 /* Load immediate */
 class Ldi : Instruction!AvrState {
     uint regd;
@@ -1479,6 +1542,30 @@ class Lsr : Instruction!AvrState {
 
         state.sreg.N = false;
         state.sreg.C = cast(bool)(rd & 0x01);
+        state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.S = state.sreg.N ^ state.sreg.V;
+        state.sreg.Z = result == 0;
+
+        return 1;
+    }
+}
+
+class Lsl : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = cast(ubyte)(rd << 1);
+        state.valueRegisters[regd].value = result;
+
+        state.sreg.H = cast(bool)(rd & 0x08);
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.C = cast(bool)(rd & 0x80);
         state.sreg.V = state.sreg.N ^ state.sreg.C;
         state.sreg.S = state.sreg.N ^ state.sreg.V;
         state.sreg.Z = result == 0;
@@ -1640,7 +1727,7 @@ class Reti(AvrChipSpec chip) : Instruction!AvrState {
 }
 
 class Rjmp(AvrChipSpec chip) : Instruction!AvrState {
-    long dest;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
@@ -2035,7 +2122,7 @@ unittest {
 }
 
 class Rcall(AvrChipSpec chip) : Instruction!AvrState {
-    long dest;
+    size_t dest;
 
     this(in InstructionToken token) {
         super(token);
@@ -2129,6 +2216,28 @@ unittest {
     assert(!state.sreg.C);
     assert(state.sreg.V);
     assert(!state.sreg.S);
+}
+
+class Rol : Instruction!AvrState {
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        ubyte rd = state.valueRegisters[regd].value;
+        ubyte result = cast(ubyte)(rd << 1 | state.sreg.C);
+        state.valueRegisters[regd].value = result;
+        state.sreg.H = cast(bool)(rd & 0x08);
+        state.sreg.N = cast(bool)(result & 0x80);
+        state.sreg.Z = result == 0;
+        state.sreg.C = cast(bool)(rd & 0x80);
+        state.sreg.V = state.sreg.N ^ state.sreg.C;
+        state.sreg.S = state.sreg.V ^ state.sreg.N;
+        return 1;
+    }
 }
 
 class Sbc : Instruction!AvrState {
@@ -2639,6 +2748,60 @@ class Wdr : Instruction!AvrState {
     override cycleCount callback(AvrState state) const {
         // resets the Watchdog Timer, which is not part of this simulator
         return 1;
+    }
+}
+
+class Xch : Instruction!AvrState{
+    uint regd;
+
+    this(in InstructionToken token) {
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        size_t z = cast(size_t)(state.zreg);
+
+        ubyte value = state.data[z];
+        state.data[z] = state.valueRegisters[regd];
+        state.valueRegisters[regd].value = value;
+
+        return 2;
+    }
+}
+unittest {
+    auto state = new AvrState();
+    state.data[0x1234]= 42;
+    state.valueRegisters[2].value = 34;
+    state.valueRegisters[30].value = 0x34;
+    state.valueRegisters[31].value = 0x12;
+    auto xch = new Xch(new InstructionToken(0,0,[],"xch",["r2"]));
+    state.setInstructions([xch]);
+    xch.callback(state);
+    assert(state.valueRegisters[2].value == 42);
+    assert(state.data[0x1234]= 34);
+}
+
+class Bset : Instruction!AvrState{
+    ubyte mask;
+
+    this(in InstructionToken token) {
+        super(token);
+        int pos = parseHex(token.parameters[0]); 
+        mask = cast(ubyte)(1 << pos);
+    }
+
+    override cycleCount callback(AvrState state) const {
+        state.sreg.value = state.sreg.value & mask;
+        return 1;
+    }
+}
+
+class Bclr : Bset{
+    this(in InstructionToken token) {
+        super(token);
+        int pos = parseHex(token.parameters[0]); 
+        mask = cast(ubyte)(0xff - (1 << pos));
     }
 }
 
