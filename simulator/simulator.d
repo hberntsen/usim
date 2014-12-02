@@ -47,7 +47,8 @@ final class Simulator(T) : BatchModeSimulator {
         string[string] commands = [
             "registers": "show register content for the given registers, or all when none are specified",
             "data": "show data memory content at the given address range",
-            "program": "show progam memory content at the given address range",
+            "program": "show program memory content at the given address range",
+            "stack": "show stack content at the given address range",
             "instruction": "show the precise instruction under execution",
             "summary": "show a summary of possibly relevant information",
             "help": "show helpful infomration for `show`"
@@ -75,6 +76,22 @@ final class Simulator(T) : BatchModeSimulator {
         Memory mem = machineState.data;
 
         switch(commandAbbrev[parameters[0]]) {
+            case "stack":
+                auto sp = machineState.stackPointer;
+                //auto initialSp = cast(ushort)(machineState.data.size - 2); // TODO configurable?
+
+                writefln("sp: %s, datalen: %x", sp, cast(ushort)(machineState.data.size));
+                if (sp.value  + 1 > machineState.data.size) {
+                    return format("Error when reading stack, SP: %s", sp);
+                }
+
+                ubyte[] stack = machineState.data[sp.value + 1 .. $];
+                string[] stackRepr;
+                foreach (idx, el; stack) {
+                    stackRepr ~= format("0x%06x 0x%02x", sp + idx, el);
+                }
+
+                return join(stackRepr, "\n") ~ "\n";
             case "registers":
                 if (parameters.length < 2) {
                     return join(registers, "\n") ~ "\n";
