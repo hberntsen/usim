@@ -113,7 +113,7 @@ final class Simulator(T) : BatchModeSimulator {
                 return format("%s\n", machineState.nextInstruction);
             case "program":
                 mem = machineState.program;
-                goto case;
+                goto case "data";
             case "eeprom":
                 mem = machineState.eeprom;
                 goto case;
