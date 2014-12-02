@@ -24,7 +24,7 @@ struct SimulatorState {
 }
 
 interface BatchModeSimulator {
-    SimulatorState run();
+    SimulatorState run(bool withBreakpoints = false);
 }
 
 struct DebuggerState {
@@ -230,7 +230,7 @@ final class Simulator(T) : BatchModeSimulator {
         return "OK\n";
     }
 
-    public SimulatorState run(bool withBreakpoints = false) {
+    override public SimulatorState run(bool withBreakpoints = false) {
         StopWatch stopWatch;
         try {
             stopWatch.start();
