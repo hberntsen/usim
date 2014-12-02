@@ -1151,7 +1151,7 @@ class Eijmp : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         size_t eind = cast(size_t)state.getIoRegisterByIo(0x3c) << 16; //assumes size_t >= 24
-        state.jumpIndex(eind | state.zreg);
+        state.jump(2*(eind | state.zreg));
         return 2;
     }
 }
@@ -1240,7 +1240,7 @@ class Icall(AvrChipSpec chip) : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.pushProgramCounter!chip();
-        state.jumpIndex(state.zreg);
+        state.jump(2*state.zreg);
 
         if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
             if(chip.pcSizeBytes == 3) {
@@ -2790,7 +2790,7 @@ class Bset : Instruction!AvrState{
 
     this(in InstructionToken token) {
         super(token);
-        int pos = parseHex(token.parameters[0]); 
+        int pos = parseHex(token.parameters[0]);
         mask = cast(ubyte)(1 << pos);
     }
 
@@ -2803,7 +2803,7 @@ class Bset : Instruction!AvrState{
 class Bclr : Bset{
     this(in InstructionToken token) {
         super(token);
-        int pos = parseHex(token.parameters[0]); 
+        int pos = parseHex(token.parameters[0]);
         mask = cast(ubyte)(0xff - (1 << pos));
     }
 }
