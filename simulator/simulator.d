@@ -64,10 +64,10 @@ final class Simulator(T) : BatchModeSimulator {
         if (parameters.length == 0) {
             // todo: abstract this to the machinestate somewhere
             return format(
-                    "cycles:\t%d\nregisters:\t%s\n%s\n%s\n%s\n",
+                    "cycles:\t%d \nregs:\t%s \nsp:\t%s \nlast:\t%s \ncurr:\t%s",
                     simulatorState.cycles,
-                    registers,
                     machineState.refregs,
+                    machineState.stackPointer,
                     machineState.currentInstruction,
                     machineState.nextInstruction,
             );

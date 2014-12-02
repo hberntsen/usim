@@ -120,6 +120,7 @@ class AvrState : MachineState {
         //SRAM: 8703
         stackPointer = new ReferenceRegister!ushort("SP",spOffset, data);
         stackPointer.value = cast(ushort)(data.size - 2);
+        stackPointer.reverse = true;
 
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);

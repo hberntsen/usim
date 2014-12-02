@@ -12,13 +12,14 @@ import simulator.simulator;
 abstract class Register
 {
     string _name;
+    bool reverse = false;
 
     @property string name() {
         return name;
     }
 
     override string toString() {
-        return format("0x%(%02x %)", bytes);
+        return format("0x%(%02x%)", reverse ? bytes.dup.reverse : bytes);
     }
 
 

@@ -3,9 +3,10 @@
 import urwid
 import urwid.signals
 import socket
+import sys
 
 class Window(urwid.BoxAdapter):
-    def __init__(self, body, title = "Unknown title", height = 40):
+    def __init__(self, body, title = "Unknown title", height = 35):
         #super(Window, self).__init__(
         self.frame = urwid.Frame(
                 body,
@@ -59,7 +60,7 @@ class Command:
 
 
 class CommandView(Window):
-    def __init__(self, command, height = 40):
+    def __init__(self, command, height = 35):
         self.command = command
         self.txt = urwid.Text("No output")
 
@@ -90,7 +91,7 @@ class CommandView(Window):
         return False
 
 class SourceBrowser(Window):
-    def __init__(self, filename = "tests/avrmul-generator/test/test_mul_atmega2560.dump"):
+    def __init__(self, filename):
         lines = []
         with open(filename, "r") as f:
             i  = 1
@@ -158,19 +159,21 @@ class CliEdit(urwid.Edit):
 
 
 class Root(urwid.Frame):
-    def __init__(self):
+    def __init__(self, filename):
         global cli
 
         self.info = Info()
         self.info.contents = [
-                (CommandView("show registers"), self.info.options('given', 15)),
-                (SourceBrowser(), self.info.options()),
-                (CommandView("show stack"), self.info.options('given', 15)),
+                (CommandView("show registers"), self.info.options('weight', 1)),
+                (SourceBrowser(filename), self.info.options('weight', 2)),
+                (CommandView("show stack"), self.info.options('weight', 1)),
         ]
 
         self.infoBottom = Info()
         self.infoBottom.contents = [
-                (CliOutput(), self.info.options()),
+                (CommandView("show"), self.info.options('weight', 1)),
+                (CliOutput(), self.info.options('weight', 2)),
+                (CommandView("help"), self.info.options('weight', 1)),
         ]
 
         self.pile = urwid.Pile([self.info, self.infoBottom])
@@ -181,7 +184,12 @@ class Root(urwid.Frame):
 cli = CliEdit()
 
 def main():
-    root = Root()
+    if (len(sys.argv) < 2):
+        print("Usage: <command> <dumpfile>")
+
+    filename = sys.argv[1]
+
+    root = Root(filename)
     cli = CliEdit()
 
     palette = [
@@ -192,6 +200,7 @@ def main():
 
     loop = urwid.MainLoop(root, palette)
     loop.run()
+
 
 if __name__ == "__main__":
     main();
