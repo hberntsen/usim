@@ -308,7 +308,7 @@ unittest {
 
     state.setInstructions(instrs);
     auto simstate = sim.run();
-    assert(simstate.cycles==6);
+    assert(simstate.cycles==4);
     assert(state.registers[1].bytes[0] == 0xff);
     assert(state.registers[2].bytes[0] == 0xaa);
 }
