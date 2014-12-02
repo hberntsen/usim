@@ -3,6 +3,7 @@
 import std.stdio;
 import std.getopt;
 import std.socket;
+import std.string;
 
 import parser.parser;
 import spec.atmega2560;
@@ -28,6 +29,7 @@ void main(string[] args) {
 
     File file;
     try {
+        filename = chomp(filename);
         file = File(filename, "r");
     } catch {
         stderr.writeln("File ", filename, " could not be read");
@@ -43,6 +45,7 @@ void main(string[] args) {
 
     if (debugMode) {
         auto avrSim = cast(Simulator!AvrState)(sim);
+        avrSim.file = filename;
         debug writefln("Opening a socket for the debugger", port);
         Socket s = new TcpSocket;
         scope(exit) {
@@ -58,6 +61,10 @@ void main(string[] args) {
 
             while (true) {
                 Socket input = s.accept();
+                scope(exit) {
+                    debug writeln("Closing input socket");
+                    input.close();
+                }
                 debug stderr.writeln("accepted connection");
                 char[64] buffer;
                 ptrdiff_t len;

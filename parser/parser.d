@@ -32,7 +32,13 @@ class InstructionToken {
 }
 
 InstructionToken parseInstruction(in int lineNumber, in string line) {
-    string[] pieces = split(line, "\t");
+    string l = strip(chomp(line));
+
+    if (l.empty || l == "") {
+        return null;
+    }
+
+    string[] pieces = split(l, "\t");
     for (size_t i = 0; i < pieces.length; ++i) {
         pieces[i] = strip(chomp(pieces[i]));
     }
@@ -82,6 +88,12 @@ string parseSection(in string line) {
     return matches[1];
 }
 
+bool isNop(in string line) {
+    auto r = ctRegex!(`^\t...`);//also allow .word instruction
+    auto matches = matchFirst(line, r);
+    return !matches.empty;
+}
+
 InstructionToken[] parse(File file, out ubyte[] data) {
     InstructionToken[] instructions;
     instructions.length = 100;
@@ -90,20 +102,40 @@ InstructionToken[] parse(File file, out ubyte[] data) {
     string line;
     string currentSection;
     ubyte[] dataSection;
+    bool nopping = false;
+    InstructionToken previous = null;
+
     while ((line = file.readln()) !is null) {
         InstructionToken token = parseInstruction(lineNumber, line);
+
         if (token is null) {
             string section = parseSection(line);
             if(section !is null) {
                 currentSection = section;
+            }
+
+            if (isNop(line)) {
+                nopping = true;
             }
         }
         else if (currentSection == ".text"){
             if (i == instructions.length) {
                 instructions.length *= 2;
             }
+
+            if (nopping && previous !is null) {
+                size_t n = token.address - previous.address - 2;
+                if (n > 0 && n % 2 == 0) {
+                    ubyte[] nops = new ubyte[n]; // implicitly filled with zeroes
+                    data ~= nops;
+                }
+                nopping = false;
+            }
             instructions[i++] = token;
             data ~= token.raw;
+
+            previous = token;
+
         }
         else if (currentSection == ".data") {
             dataSection ~= token.raw;

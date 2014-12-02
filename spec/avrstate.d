@@ -1403,8 +1403,8 @@ class Ldd : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         size_t addr = state.refregs[refreg].value + q;
-        //stderr.writefln("addr: %x, q: %d", addr, q);
         state.valueRegisters[regd].value = state.data[addr];
+        //stderr.writefln("addr: 0x%x, %d, q: %d, v: 0x%x", addr, addr, q, state.data[addr]);
         return 2;
     }
 }

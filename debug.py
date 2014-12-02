@@ -4,20 +4,21 @@ import urwid
 import urwid.signals
 import socket
 import sys
+import getopt
 
 class Window(urwid.BoxAdapter):
     def __init__(self, body, title = "Unknown title", height = 35):
         #super(Window, self).__init__(
         self.frame = urwid.Frame(
-                body,
-                header=urwid.AttrMap(
-                    urwid.Text(('title', title)),
-                    'title'
-                ),
-                footer=urwid.AttrMap(
-                    urwid.Text(('footer', '')),
-                    'footer'
-                )
+            body,
+            header=urwid.AttrMap(
+                urwid.Text(('title', title)),
+                'title'
+            ),
+            footer=urwid.AttrMap(
+                urwid.Text(('footer', '')),
+                'footer'
+            )
         )
         super(Window, self).__init__(self.frame, height)
 
@@ -29,7 +30,9 @@ class Command:
 
     def executeCommand(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(("localhost", 3742))
+
+        global config
+        sock.connect(("localhost", config['port']))
 
         self.send(sock, self.command + "\n")
         self.response = self.receive(sock)
@@ -91,9 +94,10 @@ class CommandView(Window):
         return False
 
 class SourceBrowser(Window):
-    def __init__(self, filename):
+    def __init__(self):
         lines = []
-        with open(filename, "r") as f:
+        self.retreiveFilename()
+        with open(self.filename, "r") as f:
             i  = 1
             for line in f:
                 lines.append(urwid.Text(u"%4d %s" % (i, line.expandtabs(2).rstrip())))
@@ -105,9 +109,14 @@ class SourceBrowser(Window):
         global cli
         urwid.connect_signal(cli, 'executed', self.onExecuted)
 
-        super(SourceBrowser, self).__init__(self.box, "file: %s" %filename)
+        super(SourceBrowser, self).__init__(self.box, "file: %s" % self.filename)
 
         self.onExecuted()
+
+    def retreiveFilename(self):
+        cmd = Command("show file")
+        resp = cmd.executeCommand()
+        self.filename = resp.rstrip();
 
     def onExecuted(self):
         cmd = Command("show instruction");
@@ -135,7 +144,6 @@ class CliOutput(CommandView):
         self.updateResponse(cli.command.response)
         self.frame.header.original_widget.set_text('Output: %s' % cli.command.command)
 
-
 class Info(urwid.Columns):
     def __init__(self):
         super(Info, self).__init__([], 2)
@@ -159,37 +167,59 @@ class CliEdit(urwid.Edit):
 
 
 class Root(urwid.Frame):
-    def __init__(self, filename):
+    def __init__(self):
         global cli
 
         self.info = Info()
+        self.browser = SourceBrowser();
         self.info.contents = [
                 (CommandView("show registers"), self.info.options('weight', 1)),
-                (SourceBrowser(filename), self.info.options('weight', 2)),
+                (self.browser, self.info.options('weight', 2)),
                 (CommandView("show stack"), self.info.options('weight', 1)),
         ]
 
+        self.cliOutput = CliOutput()
         self.infoBottom = Info()
         self.infoBottom.contents = [
                 (CommandView("show"), self.info.options('weight', 1)),
-                (CliOutput(), self.info.options('weight', 2)),
-                (CommandView("help"), self.info.options('weight', 1)),
+                (self.cliOutput, self.info.options('weight', 2)),
+                (CommandView("show data 0x0200"), self.info.options('weight', 1)),
         ]
 
         self.pile = urwid.Pile([self.info, self.infoBottom])
         self.filler = urwid.Filler(self.pile, "top")
 
-        super(Root, self).__init__(self.filler, footer = cli, focus_part='footer')
+        self.footer = urwid.Pile([urwid.Divider('-'), cli]);
+
+        super(Root, self).__init__(self.filler, footer = self.footer, focus_part='footer')
+
+    def keypress(self, size, key):
+        trans = {'page up': 'up', 'page down': 'down' }
+        if key in trans:
+            return self.cliOutput.box.keypress(size, trans[key])
+        return super(Root, self).keypress(size, key)
 
 cli = CliEdit()
+config = {
+    'port': 3742,
+}
 
 def main():
-    if (len(sys.argv) < 2):
-        print("Usage: <command> <dumpfile>")
+    args = sys.argv[1:]
+    try:
+        (optlist, args) = getopt.getopt(args, 'p:', ['port='])
+    except getopt.GetoptError as e:
+        print(e)
+        sys.exit(2)
 
-    filename = sys.argv[1]
+    global config
+    for o,a in optlist:
+        if o in ['-p', '--port']:
+            if a:
+                config['port'] = int(a)
 
-    root = Root(filename)
+
+    root = Root()
     cli = CliEdit()
 
     palette = [
@@ -200,7 +230,6 @@ def main():
 
     loop = urwid.MainLoop(root, palette)
     loop.run()
-
 
 if __name__ == "__main__":
     main();

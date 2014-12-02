@@ -36,6 +36,7 @@ final class Simulator(T) : BatchModeSimulator {
     T machineState;
     SimulatorState simulatorState;
     DebuggerState debuggerState;
+    string file;
 
     this(T initialState) {
         this.machineState = initialState;
@@ -45,7 +46,9 @@ final class Simulator(T) : BatchModeSimulator {
 
     private string handleShowCommand(string[] parameters) {
         string[string] commands = [
+            "file": "print the path to the file being debugged",
             "registers": "show register content for the given registers, or all when none are specified",
+            "io": "show io register content",
             "data": "show data memory content at the given address range",
             "program": "show program memory content at the given address range",
             "stack": "show stack content at the given address range",
@@ -64,7 +67,8 @@ final class Simulator(T) : BatchModeSimulator {
         if (parameters.length == 0) {
             // todo: abstract this to the machinestate somewhere
             return format(
-                    "cycles:\t%d \nregs:\t%s \nsp:\t%s \nlast:\t%s \ncurr:\t%s\nsreg:\t%s \n",
+                    "file:\t%s \ncycles:\t%d \nregs:\t%s \nsp:\t%s \nlast:\t%s \ncurr:\t%s\nsreg:\t%s \n",
+                    this.file,
                     simulatorState.cycles,
                     machineState.refregs,
                     machineState.stackPointer,
@@ -76,88 +80,102 @@ final class Simulator(T) : BatchModeSimulator {
 
         Memory mem = machineState.data;
 
-        switch(commandAbbrev[parameters[0]]) {
-            case "stack":
-                auto sp = machineState.stackPointer;
-                //auto initialSp = cast(ushort)(machineState.data.size - 2); // TODO configurable?
-
-                writefln("sp: %s, datalen: %x", sp, cast(ushort)(machineState.data.size));
-                if (sp.value  + 1 > machineState.data.size) {
-                    return format("Error when reading stack, SP: %s", sp);
-                }
-
-                ubyte[] stack = machineState.data[sp.value + 1 .. $];
-                string[] stackRepr;
-                foreach (idx, el; stack) {
-                    stackRepr ~= format("0x%06x 0x%02x", sp + idx, el);
-                }
-
-                return join(stackRepr, "\n") ~ "\n";
-            case "registers":
-                if (parameters.length < 2) {
-                    return join(registers, "\n") ~ "\n";
-                }
-
-                string[] registerSet;
-                foreach (idx, param; parameters[1 .. $]) {
-                    size_t specifier;
-                    if (param[0] == 'r') {
-                        specifier = to!size_t(param[1 .. $]);
-                    } else {
-                        specifier = to!size_t(param[0 .. $]);
+        if (parameters[0] in commandAbbrev) {
+            switch(commandAbbrev[parameters[0]]) {
+                case "io":
+                    //return format("%s\n", machineState.ioRegisters);
+                    string[] dataSlice;
+                    foreach (idx, el; machineState.ioRegisters) {
+                        auto addr = cast(ushort)(idx + 0x20);
+                        dataSlice ~= format("0x%x %s", addr, el);
                     }
-                    registerSet ~= registers[specifier];
-                }
-                return join(registerSet, "\n") ~ "\n";
-            case "instruction":
-                return format("%s\n", machineState.nextInstruction);
-            case "program":
-                mem = machineState.program;
-                goto case "data";
-            case "eeprom":
-                mem = machineState.eeprom;
-                goto case;
-            case "data":
-                if (parameters.length < 2) {
-                    return "Usage: `show <memory> <begin> <end>`\n";
-                }
 
-                size_t begin;
-                size_t end;
+                    return join(dataSlice, "\n") ~ "\n";
+                case "file":
+                    return this.file ~ "\n";
+                case "stack":
+                    auto sp = machineState.stackPointer;
+                    //auto initialSp = cast(ushort)(machineState.data.size - 2); // TODO configurable?
 
-                if (parameters.length >= 2) {
-                    if (parameters[1][0 .. 2] == "0x") {
-                        string numeric = parameters[1][2 .. $];
-                        begin = parse!size_t(numeric, 16);
-                    } else {
-                        begin = to!size_t(parameters[1]);
+                    writefln("sp: %s, datalen: %x", sp, cast(ushort)(machineState.data.size));
+                    if (sp.value  + 1 > machineState.data.size) {
+                        return format("Error when reading stack, SP: %s", sp);
                     }
-                }
 
-                if (parameters.length == 2) {
-                    end = begin;
-                } else {
-                    if (parameters[2][0 .. 2] == "0x") {
-                        string numeric = parameters[2][2 .. $];
-                        end = parse!size_t(numeric, 16);
-                    } else {
-                        end = to!size_t(parameters[2]);
+                    ubyte[] stack = machineState.data[sp.value + 1 .. $];
+                    string[] stackRepr;
+                    foreach (idx, el; stack) {
+                        stackRepr ~= format("0x%06x 0x%02x", sp + idx, el);
                     }
-                }
 
-                if (begin > end) {
-                    return "Begin greater than end, please try again\n";
-                }
+                    return join(stackRepr, "\n") ~ "\n";
+                case "registers":
+                    if (parameters.length < 2) {
+                        return join(registers, "\n") ~ "\n";
+                    }
 
-                string[] dataSlice;
-                foreach (idx, el; mem[begin .. end + 1]) {
-                    dataSlice ~= format("0x%06x 0x%02x", idx + begin, el);
-                }
-                return join(dataSlice, "\n") ~ "\n";
-            case "help":
-            default :
-                return format("%(- %s %|\n%)\n", commands);
+                    string[] registerSet;
+                    foreach (idx, param; parameters[1 .. $]) {
+                        size_t specifier;
+                        if (param[0] == 'r') {
+                            specifier = to!size_t(param[1 .. $]);
+                        } else {
+                            specifier = to!size_t(param[0 .. $]);
+                        }
+                        registerSet ~= registers[specifier];
+                    }
+                    return join(registerSet, "\n") ~ "\n";
+                case "instruction":
+                    return format("%s\n", machineState.nextInstruction);
+                case "program":
+                    mem = machineState.program;
+                    goto case "data";
+                case "eeprom":
+                    mem = machineState.eeprom;
+                    goto case;
+                case "data":
+                    if (parameters.length < 2) {
+                        return "Usage: `show <memory> <begin> <end>`\n";
+                    }
+
+                    size_t begin;
+                    size_t end;
+
+                    if (parameters.length >= 2) {
+                        if (parameters[1][0 .. 2] == "0x") {
+                            string numeric = parameters[1][2 .. $];
+                            begin = parse!size_t(numeric, 16);
+                        } else {
+                            begin = to!size_t(parameters[1]);
+                        }
+                    }
+
+                    if (parameters.length == 2) {
+                        end = begin;
+                    } else {
+                        if (parameters[2][0 .. 2] == "0x") {
+                            string numeric = parameters[2][2 .. $];
+                            end = parse!size_t(numeric, 16);
+                        } else {
+                            end = to!size_t(parameters[2]);
+                        }
+                    }
+
+                    if (begin > end) {
+                        return "Begin greater than end, please try again\n";
+                    }
+
+                    string[] dataSlice;
+                    foreach (idx, el; mem[begin .. end + 1]) {
+                        dataSlice ~= format("0x%06x 0x%02x", idx + begin, el);
+                    }
+                    return join(dataSlice, "\n") ~ "\n";
+                case "help":
+                default :
+                    return format("%(- %s %|\n%)\n", commands);
+            }
         }
+        return "Unknown command: " ~ parameters[0] ~ "\n";
     }
 
     private string handleSetCommand(string[] parameters) {
