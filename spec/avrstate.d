@@ -120,6 +120,7 @@ class AvrState : MachineState {
         //SRAM: 8703
         stackPointer = new ReferenceRegister!ushort("SP",spOffset, data);
         stackPointer.value = cast(ushort)(data.size - 2);
+        stackPointer.reverse = true;
 
         for(int i = 0; i < valueRegisters.length; i++) {
             valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
@@ -1623,7 +1624,7 @@ class St(AvrChipSpec chip) : Instruction!AvrState {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
         ushort addr = state.refregs[refreg];
-        enforce(addr < state.data.size, format("address: %x", addr));
+        enforce(addr < state.data.size, format("Address too high: %x --- Instruction: %s", addr, token));
         state.data[addr] = state.valueRegisters[regr].value;
 
         if(postinc)
@@ -2609,9 +2610,11 @@ class Sbi(AvrChipSpec chip) : Instruction!AvrState {
 
     override cycleCount callback(AvrState state) const {
         state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value | cast(ubyte)(1 << bit);
-        if(chip.chipType == AvrChipSpec.ChipType.OTHER)
+        if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
             return 2;
-        return 1;
+        } else {
+            return 1;
+        }
     }
 }
 
