@@ -2256,7 +2256,7 @@ class Sbc : Instruction!AvrState {
         ubyte rr = state.valueRegisters[regr].value;
         ubyte result = cast(ubyte)(rd - rr - state.sreg.C);
         state.valueRegisters[regd].value = result;
-        state.setSregArithNeg(rd, rr, result);
+        state.setSregArithNeg(rd, rr, result, true);
 
         return 1;
     }
@@ -2290,7 +2290,7 @@ class Sbci : Instruction!AvrState {
         ubyte rd = state.valueRegisters[regd].value;
         ubyte result = cast(ubyte)(rd - k - state.sreg.C);
         state.valueRegisters[regd].value = result;
-        state.setSregArithNeg(rd, k, result);
+        state.setSregArithNeg(rd, k, result, true);
 
         return 1;
     }
