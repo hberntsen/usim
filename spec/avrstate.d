@@ -86,7 +86,7 @@ class AvrState : MachineState {
     private ReferenceRegister!ushort[string] _refregs;
     enum size_t UDR = 0xC6;
     enum size_t UCSRA = 0xC0;
-    enum size_t UDRE = 5;
+    static ubyte UCSRAMask = 0xE0;
     enum size_t RAMPZ = 0x3c;
 
     invariant() {
@@ -130,8 +130,8 @@ class AvrState : MachineState {
             ioRegisters[i] = new ReferenceRegister!ubyte(format("io:%x",
                         cast(size_t)(i + 0x20)), i + 0x40, data);
         }
-        //We are always done writing the byte
-        data[UCSRA] = data[UCSRA] | 1 << UDRE;
+        //We are always done reading and writing the byte
+        data[UCSRA] = data[UCSRA] | UCSRAMask;
     }
     final {
 
@@ -1366,7 +1366,15 @@ class Ld(AvrChipSpec chip) : Instruction!AvrState {
         }
 
         size_t addr = state.refregs[refreg].value;
-        state.valueRegisters[regd].value = state.data[addr];
+
+        if(addr == AvrState.UDR) {
+            ubyte[1] b;
+            stdin.rawRead!ubyte(b);
+            state.valueRegisters[regd].value = b[0];
+            stdin.flush();
+        } else {
+            state.valueRegisters[regd].value = state.data[addr];
+        }
 
         if(postinc) {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value + 1);
@@ -1484,15 +1492,22 @@ class Lds : Instruction!AvrState {
     private immutable cycleCount cycles;
 
     this(in InstructionToken token) {
-      super(token);
-      regd = parseNumericRegister(token.parameters[0]);
-      address = parseHex(token.parameters[1]);
-      cycles = token.raw.length == 2 ? 1 : 2;
+        super(token);
+        regd = parseNumericRegister(token.parameters[0]);
+        address = parseHex(token.parameters[1]);
+        cycles = token.raw.length == 2 ? 1 : 2;
     }
 
     override cycleCount callback(AvrState state) const {
-      state.valueRegisters[regd].value = state.data[address];
-      return cycles;
+        if(address == AvrState.UDR) {
+            ubyte[1] b;
+            stdin.rawRead!ubyte(b);
+            state.valueRegisters[regd].value = b[0];
+            stdin.flush();
+        } else {
+            state.valueRegisters[regd].value = state.data[address];
+        }
+        return cycles;
     }
 }
 
