@@ -345,7 +345,7 @@ class Adiw : Instruction!AvrState {
         uint rdhigh = cast(uint)(state.valueRegisters[dest + 1].value) << 8;
 
         uint rd = rdlow + rdhigh;
-        uint result = rd + k;
+        uint result = (rd + k) & 0xffff;
 
         state.valueRegisters[dest].value = cast(ubyte)(result & 0x00ff);
         state.valueRegisters[dest + 1].value = cast(ubyte)((result >> 8) & 0x00ff);
