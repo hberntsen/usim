@@ -2917,6 +2917,7 @@ abstract class AvrFactory : MachineFactory {
         switch (tok.name) {
             mixin(instructionsSwitchCode(instructionNames));
             mixin(templatedInstructionsSwitchCode(templatedInstructionNames));
+            case ".word": return new Nop(tok);
             default: throw new Exception("Unknown instruction: " ~ tok.name);
         }
     }
