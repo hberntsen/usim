@@ -630,7 +630,7 @@ class Brhs : RelativeBranchInstruction {
     }
 }
 
-class Bric : RelativeBranchInstruction {
+class Brid : RelativeBranchInstruction {
     this(in InstructionToken token) {
         super(token);
     }
@@ -640,7 +640,7 @@ class Bric : RelativeBranchInstruction {
     }
 }
 
-class Bris : RelativeBranchInstruction {
+class Brie : RelativeBranchInstruction {
     this(in InstructionToken token) {
         super(token);
     }
@@ -2900,7 +2900,7 @@ abstract class AvrFactory : MachineFactory {
         //Incorrect regex because not all instructions extend Instruction, some extend a subclass!
         enum string[] instructionNames = [
             "Add", "Adc", "Adiw", "And", "Andi", "Asr", "Bclr", "Bld", "Brbc", "Brbs",
-            "Brcc", "Brcs", "Break", "Breq", "Brge", "Brhc", "Brhs", "Bric", "Bris", "Brlo",
+            "Brcc", "Brcs", "Break", "Breq", "Brge", "Brhc", "Brhs", "Brid", "Brie", "Brlo",
             "Brlt", "Brmi", "Brne", "Brpl", "Brsh", "Brtc", "Brts", "Brvc", "Brvs", "Bset",
             "Bst", "Cbi", "Cbr", "Clc", "Clh", "Cli", "Cln", "Clr", "Cls", "Clt", "Clv",
             "Clz", "Com", "Cp", "Cpc", "Cpi", "Cpse", "Dec", "Eijmp", "Elpm", "Eor", "Fmul",
