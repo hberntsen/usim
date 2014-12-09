@@ -2897,16 +2897,17 @@ abstract class AvrFactory : MachineFactory {
         //Generated using
         //r! awk '/^class ([A-Z][a-z]*)\s*:.*Instruction/ {printf "\"\%s\", ", $2}' %
         // in vim
+        //Incorrect regex because not all instructions extend Instruction, some extend a subclass!
         enum string[] instructionNames = [
-            "Add", "Adc", "Adiw", "And", "Andi", "Asr", "Bld", "Brbc", "Brbs", "Brcc",
-            "Brcs", "Break", "Breq", "Brge", "Brhc", "Brhs", "Bric", "Bris", "Brlt",
-            "Brmi", "Brne", "Brpl", "Brtc", "Brts", "Brvc", "Brvs", "Bst", "Cbi",
-            "Cbr", "Clc", "Clh", "Cli", "Cln", "Clr", "Cls", "Clt", "Clv", "Clz",
-            "Com", "Cp", "Cpc", "Cpi", "Cpse", "Dec", "Eijmp", "Elpm", "Eor", "Ijmp",
-            "Jmp", "In", "Inc", "Ldd", "Ldi", "Lds", "Lpm", "Lsr", "Out", "Sts", "Nop",
-            "Mov", "Movw", "Mul", "Muls", "Mulsu", "Neg", "Or", "Ori", "Pop",
-            "Push", "Ror", "Sbc", "Sbci", "Sbiw", "Sbr", "Sec", "Seh", "Sei", "Sen",
-            "Ser", "Ses", "Set", "Sev", "Sez", "Sleep", "Std", "Sub", "Subi", "Swap",
+            "Add", "Adc", "Adiw", "And", "Andi", "Asr", "Bclr", "Bld", "Brbc", "Brbs",
+            "Brcc", "Brcs", "Break", "Breq", "Brge", "Brhc", "Brhs", "Bric", "Bris", "Brlo",
+            "Brlt", "Brmi", "Brne", "Brpl", "Brsh", "Brtc", "Brts", "Brvc", "Brvs", "Bset",
+            "Bst", "Cbi", "Cbr", "Clc", "Clh", "Cli", "Cln", "Clr", "Cls", "Clt", "Clv",
+            "Clz", "Com", "Cp", "Cpc", "Cpi", "Cpse", "Dec", "Eijmp", "Elpm", "Eor", "Fmul",
+            "Fmuls", "Fmulsu", "Ijmp", "Jmp", "In", "Inc", "Ldd", "Ldi", "Lds", "Lpm",
+            "Lsr", "Out", "Sts", "Nop", "Mov", "Movw", "Mul", "Muls", "Mulsu", "Neg", "Or",
+            "Ori", "Pop", "Push", "Ror", "Sbc", "Sbci", "Sbiw", "Sbr", "Sec", "Seh", "Sei",
+            "Sen", "Ser", "Ses", "Set", "Sev", "Sez", "Sleep", "Std", "Sub", "Subi", "Swap",
             "Tst", "Wdr"];
         //r! awk '/^class ([A-Z][a-z]*)\s*\(AvrChipSpec.*:.*Instruction/ {printf "\"\%s\", ", $2}' %
         //'<,'>s/(AvrChipSpec//g
