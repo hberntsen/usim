@@ -88,12 +88,6 @@ string parseSection(in string line) {
     return matches[1];
 }
 
-bool isNop(in string line) {
-    auto r = ctRegex!(`^\t...`);//also allow .word instruction
-    auto matches = matchFirst(line, r);
-    return !matches.empty;
-}
-
 InstructionToken[] parse(File file, out ubyte[] data) {
     InstructionToken[] instructions;
     instructions.length = 100;
@@ -113,24 +107,12 @@ InstructionToken[] parse(File file, out ubyte[] data) {
             if(section !is null) {
                 currentSection = section;
             }
-
-            if (isNop(line)) {
-                nopping = true;
-            }
         }
         else if (currentSection == ".text"){
             if (i == instructions.length) {
                 instructions.length *= 2;
             }
 
-            if (nopping && previous !is null) {
-                size_t n = token.address - previous.address - 2;
-                if (n > 0 && n % 2 == 0) {
-                    ubyte[] nops = new ubyte[n]; // implicitly filled with zeroes
-                    data ~= nops;
-                }
-                nopping = false;
-            }
             instructions[i++] = token;
             data ~= token.raw;
 
