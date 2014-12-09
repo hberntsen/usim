@@ -93,6 +93,11 @@ class ReferenceRegister(T) : Register {
         super(name);
         slice2 = raw[offset .. offset + T.sizeof];
     }
+
+    this(in string name, in size_t offset, ubyte[] raw) {
+        super(name);
+        slice2 = raw[offset .. offset + T.sizeof];
+    }
 }
 
 //Test the ReferenceRegister implementation with a stack example
@@ -114,7 +119,7 @@ final class Memory {
     size_t offset;
 
     @property size_t size() { return data.length;}
-    
+
     size_t opDollar() {
         return size + offset;
     }
@@ -122,6 +127,10 @@ final class Memory {
     this(size_t size, size_t offset =0) {
         this.offset = offset;
         this.data = new ubyte[size];
+    }
+
+    this(ubyte[] data, size_t offset=0) {
+        this.data = data;
     }
 
     override string toString() {

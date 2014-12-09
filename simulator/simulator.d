@@ -25,6 +25,9 @@ struct SimulatorState {
 
 interface BatchModeSimulator {
     SimulatorState run(bool withBreakpoints = false);
+    string handleDebugCommand(string command);
+    @property string file();
+    @property string file(string filepath);
 }
 
 struct DebuggerState {
@@ -36,7 +39,9 @@ final class Simulator(T) : BatchModeSimulator {
     T machineState;
     SimulatorState simulatorState;
     DebuggerState debuggerState;
-    string file;
+    private string file_;
+    @property string file() { return file_;}
+    @property string file(string newFile) { file_=newFile; return newFile;}
 
     this(T initialState) {
         this.machineState = initialState;
@@ -60,7 +65,7 @@ final class Simulator(T) : BatchModeSimulator {
         auto commandAbbrev = abbrev(commands.keys);
 
         string[] registers;
-        foreach (idx, register; machineState.valueRegisters) {
+        foreach (idx, register; machineState.registers) {
             registers ~= format("r%02d %s", idx, register);
         }
 
@@ -78,7 +83,7 @@ final class Simulator(T) : BatchModeSimulator {
             );
         }
 
-        Memory mem = machineState.data;
+        ubyte[] mem = machineState.data;
 
         if (parameters[0] in commandAbbrev) {
             switch(commandAbbrev[parameters[0]]) {
@@ -97,8 +102,9 @@ final class Simulator(T) : BatchModeSimulator {
                     auto sp = machineState.stackPointer;
                     //auto initialSp = cast(ushort)(machineState.data.size - 2); // TODO configurable?
 
-                    writefln("sp: %s, datalen: %x", sp, cast(ushort)(machineState.data.size));
-                    if (sp.value  + 1 > machineState.data.size) {
+                    writefln("sp: %s, datalen: %x", sp,
+                            cast(ushort)(machineState.data.length));
+                    if (sp.value  + 1 > machineState.data.length) {
                         return format("Error when reading stack, SP: %s", sp);
                     }
 
@@ -312,9 +318,10 @@ unittest {
     import parser.parser;
     import spec.atmega2560;
     import spec.avrstate;
+    enum AvrChipSpec testChip = AvrChipSpec();
 
-    auto state = new AtMega2560State;
-    auto sim = new Simulator!AtMega2560State(state);
+    auto state = new AvrState!testChip;
+    auto sim = new Simulator!(AvrState!testChip)(state);
 
     InstructionToken tok1 = new InstructionToken(1, 0x00, [0xcf, 0xef], "ldi",
             ["r1", "0xFF"]);
@@ -322,8 +329,8 @@ unittest {
             ["r2", "0xAA"]);
     InstructionToken tok3 = new InstructionToken(3, 0x04, [0x02, 0xc0], "rjmp",
             [".-2"]);
-    enum AvrChipSpec cs = AvrChipSpec();
-    Instruction!(AvrState)[] instrs = [new Ldi(tok1), new Ldi(tok2), new Rjmp!cs(tok3)];
+    Instruction!(AvrState!testChip)[] instrs = [new Ldi!testChip(tok1),
+        new Ldi!testChip(tok2), new Rjmp!testChip(tok3)];
 
     state.setInstructions(instrs);
     auto simstate = sim.run();

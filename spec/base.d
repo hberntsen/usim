@@ -58,7 +58,7 @@ abstract class Instruction(T) {
     const InstructionToken token;
 }
 
-final class InstructionsWrapper(T) {
+struct InstructionsWrapper(T) {
     private Instruction!T[] instructions;
     private size_t currentIndex = 0;
     private size_t nextIndex = 0;
@@ -118,7 +118,7 @@ final class InstructionsWrapper(T) {
         assert((nextIndex <= instructions.length) || instructions.length == 0);
     }
 
-    override string toString() {
+    string toString() {
         return format("{[current: (%s, %d), next: (%s,%d)]", current.name,
                 currentIndex, next, nextIndex);
     }

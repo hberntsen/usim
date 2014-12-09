@@ -7,6 +7,8 @@ import std.string;
 
 import parser.parser;
 import spec.atmega2560;
+import spec.atmega88;
+import spec.attiny10;
 import machine.state;
 import simulator.simulator;
 import spec.avrstate;
@@ -44,8 +46,7 @@ void main(string[] args) {
     auto sim = simulatorFactory.createBatchModeSimulator(instructions, data);
 
     if (debugMode) {
-        auto avrSim = cast(Simulator!AvrState)(sim);
-        avrSim.file = filename;
+        sim.file = filename;
         debug writefln("Opening a socket for the debugger", port);
         Socket s = new TcpSocket;
         scope(exit) {
@@ -83,7 +84,7 @@ void main(string[] args) {
 
                     debug stderr.writefln("%s", buffer[0 .. len]);
 
-                    string response = avrSim.handleDebugCommand(buffer[0 ..  len].dup);
+                    string response = sim.handleDebugCommand(buffer[0 ..  len].dup);
                     input.send(response);
                 } while (len != Socket.ERROR && len != 0);
             }
