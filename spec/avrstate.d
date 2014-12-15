@@ -2666,10 +2666,30 @@ class Sbi(AvrChipSpec chip): Instruction!(AvrState!chip) {
 
     override cycleCount callback(AvrState!chip state) const {
         state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value | cast(ubyte)(1 << bit);
+        cycleCount halt = 0;
+        if(address == chip.EECR) {
+            ubyte controlRegister = state.getIoRegisterByIo(address).value;
+            size_t address = state.getIoRegisterByIo(chip.EEARH).value << 8 | state.getIoRegisterByIo(chip.EEARL).value;
+            if(bit == chip.EEMPE) {
+                //TODO: reset after 4 cycles
+            }
+            if(bit == chip.EEPE) {
+                if(controlRegister & chip.EEMPEMask) {
+                   state.eeprom[address] = state.getIoRegisterByIo(chip.EEDR).value;
+                    halt = 4;
+                }
+                //TODO: reset after write is finished, instead of immediately
+                state.getIoRegisterByIo(address).value = controlRegister & chip.EEPEMask;
+            }
+            if(bit == chip.EERE) {
+                state.setIoRegisterByIo(chip.EEDR, state.eeprom[address]);
+                halt = 4;
+            }
+        }
         if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
-            return 2;
+            return 2 + halt;
         } else {
-            return 1;
+            return 1 + halt;
         }
     }
 }
@@ -2915,6 +2935,22 @@ struct AvrChipSpec {
     @property bool hasHardwareUart() const {
         return chipType != ChipType.REDUCED_CORE;
     }
+
+    size_t EEARH = 0x42;
+    size_t EEARL = 0x41;
+    size_t EEDR = 0x40;
+    size_t EECR = 0x3F;
+    enum size_t EEPM1 = 5;
+    enum size_t EEPM0 = 4;
+    enum ubyte EEPMMask = 0x30;
+    enum size_t EERIE = 3;
+    enum ubyte EERIEMask = 0x08;
+    enum size_t EEMPE = 2;
+    enum ubyte EEMPEMask = 0x04;
+    enum size_t EEPE = 1;
+    enum ubyte EEPEMask = 0x02;
+    enum size_t EERE = 0;
+    enum ubyte EEREMask = 0x01;
 
     enum size_t RAMPZ = 0x3c;
 }
