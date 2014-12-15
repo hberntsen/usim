@@ -5,9 +5,10 @@ import urwid.signals
 import socket
 import sys
 import getopt
+import math
 
 class Window(urwid.BoxAdapter):
-    def __init__(self, body, title = "Unknown title", height = 35):
+    def __init__(self, body, title = "Unknown title", height = 34):
         #super(Window, self).__init__(
         self.frame = urwid.Frame(
             body,
@@ -63,12 +64,14 @@ class Command:
 
 
 class CommandView(Window):
-    def __init__(self, command, height = 35):
+    def __init__(self, command, height = 34):
         self.command = command
         self.txt = urwid.Text("No output")
 
         self.walker = urwid.SimpleFocusListWalker([self.txt])
         self.box = urwid.ListBox(self.walker)
+
+        self.lastResponse = []
 
         super(CommandView, self).__init__(
                 self.box,
@@ -88,10 +91,37 @@ class CommandView(Window):
         response = raw.expandtabs(2)
         lines = response.split(b'\n')
 
-        self.box.body[:] = [urwid.Text(line) for line in lines]
+        if self.lastResponse:
+            contents  = []
+            for (last, current) in zip(self.lastResponse, lines):
+                if last == current:
+                    contents.append(urwid.Text(current))
+                else:
+                    contents.append(urwid.Text(('change', current)))
+        else:
+            contents  = [urwid.Text(line) for line in lines]
+
+        self.box.body[:] = contents
+
+        self.lastResponse = lines
 
     def selectable(self):
         return False
+
+class MultipleCommandView(urwid.Pile):
+    def __init__(self, commands):
+        clen = len(commands);
+        lengths = [math.floor(34 / clen) for c in commands];
+        print(lengths)
+        lengths[-1] += 34 - sum(lengths)
+        print(lengths)
+
+        views = [CommandView(cmd, height) for (cmd, height) in zip(commands, lengths)]
+        super(MultipleCommandView, self).__init__(views)
+
+    def selectable(self):
+        return False
+
 
 class SourceBrowser(Window):
     def __init__(self):
@@ -174,8 +204,9 @@ class Root(urwid.Frame):
         self.browser = SourceBrowser();
         self.info.contents = [
                 (CommandView("show registers"), self.info.options('weight', 1)),
-                (self.browser, self.info.options('weight', 2)),
-                (CommandView("show stack"), self.info.options('weight', 1)),
+                (MultipleCommandView(["show flags", "show xyz", "show breakpoints"]), self.info.options('weight', 1)),
+                (self.browser, self.info.options('weight', 4)),
+                (CommandView("show stack"), self.info.options('weight', 2)),
         ]
 
         self.cliOutput = CliOutput()
@@ -226,6 +257,7 @@ def main():
         ('title', 'black', 'light gray'),
         ('footer', '', 'dark gray'),
         ('currentLine', 'black', 'light gray'),
+        ('change', 'light green', ''),
     ]
 
     loop = urwid.MainLoop(root, palette)

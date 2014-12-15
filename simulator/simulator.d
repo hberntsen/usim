@@ -31,7 +31,34 @@ interface BatchModeSimulator {
 }
 
 struct DebuggerState {
-    size_t[] breakpoints;
+    private string[size_t] breakpoints;
+    private ushort nextId = 0;
+
+    public bool hasBreakpoint(size_t line) {
+        return (line in this.breakpoints) !is null;
+    }
+
+    public string setBreakpoint(size_t line, string name = null) {
+        if (name is null) {
+            name = format("BR%04d", nextId);
+            nextId++;
+        }
+        this.breakpoints[line] ~= name;
+        return name;
+    }
+
+    public bool unsetBreakpoint(size_t line) {
+        return breakpoints.remove(line);
+    }
+
+    public string[] getBreakpoints() {
+        string[] repr;
+        foreach (idx, key; breakpoints.keys.sort) {
+            repr ~= format("%02d. %s (%d)", idx, breakpoints[key], key);
+        }
+
+        return repr;
+    }
 }
 
 //Input: initial machine state (code is part of the machine state)
@@ -52,8 +79,11 @@ final class Simulator(T) : BatchModeSimulator {
     private string handleShowCommand(string[] parameters) {
         string[string] commands = [
             "file": "print the path to the file being debugged",
+            "xyz": "show full register contents for the larger X, Y and Z registers",
+            "breakpoints": "show all the registered breakpoints",
             "registers": "show register content for the given registers, or all when none are specified",
             "io": "show io register content",
+            "flags": "show special flags",
             "data": "show data memory content at the given address range",
             "program": "show program memory content at the given address range",
             "stack": "show stack content at the given address range",
@@ -96,6 +126,30 @@ final class Simulator(T) : BatchModeSimulator {
                     }
 
                     return join(dataSlice, "\n") ~ "\n";
+                case "breakpoints":
+                    return join(debuggerState.getBreakpoints(), "\n") ~ "\n";
+                case "xyz":
+                    auto xyz = machineState.refregs;
+                    return format("X: %s\nY: %s\nZ: %s\n", xyz["X"],
+                            xyz["Y"], xyz["Z"]);
+                case "flags":
+                    auto flags = machineState.sreg;
+                    ushort[string] repr = [
+                        "I": flags.I() ? 1 : 0,
+                        "T": flags.T() ? 1 : 0,
+                        "H": flags.H() ? 1 : 0,
+                        "S": flags.S() ? 1 : 0,
+                        "V": flags.V() ? 1 : 0,
+                        "N": flags.N() ? 1 : 0,
+                        "Z": flags.Z() ? 1 : 0,
+                        "Z": flags.Z() ? 1 : 0,
+                    ];
+
+                    string[] flagRepr;
+                    foreach (idx, key; repr.keys) {
+                        flagRepr ~= format("%s: %d", key, repr[key]);
+                    }
+                    return join(flagRepr, "\n") ~ "\n";
                 case "file":
                     return this.file ~ "\n";
                 case "stack":
@@ -196,7 +250,7 @@ final class Simulator(T) : BatchModeSimulator {
                     return "Usage: `set breakpoint <linenumber>`\n";
                 }
                 size_t breakpoint = to!size_t(parameters[1]);
-                debuggerState.breakpoints ~= breakpoint;
+                debuggerState.setBreakpoint(breakpoint);
                 return format("Breakpoint set at line %d\n", breakpoint);
             case "help":
             default :
@@ -262,7 +316,7 @@ final class Simulator(T) : BatchModeSimulator {
             size_t lastAddress, currentAddress = machineState.nextInstruction.address;
             do {
                 if (withBreakpoints &&
-                        canFind(debuggerState.breakpoints,
+                        debuggerState.hasBreakpoint(
                             machineState.nextInstruction.token.lineNumber)) {
                     break;
                 }
