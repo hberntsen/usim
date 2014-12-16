@@ -36,13 +36,11 @@ class SimpleRegister(T) : Register
     T value;
 
     override @property ubyte[] bytes() {
-        //todo: convert to ubytes
-        return new ubyte[0];
+        return *cast(ubyte[T.sizeof]*)&value;
     }
-    //return to!ubyte[](value); }
+
     override @property ubyte[] bytes(ubyte[] newValue) {
-    //    value = newValue.read!T();
-    //todo: some magic to convert the ubytes to our T
+        value = *cast(T*)&newValue;
         return newValue;
     }
 
