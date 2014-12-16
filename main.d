@@ -6,9 +6,7 @@ import std.socket;
 import std.string;
 
 import parser.parser;
-import spec.atmega2560;
-import spec.atmega88;
-import spec.attiny10;
+import spec.avrchips;
 import machine.state;
 import simulator.simulator;
 import spec.avrstate;

@@ -6,7 +6,6 @@ import std.regex;
 import std.datetime : StopWatch, TickDuration;
 import machine.state;
 import spec.base;
-import spec.atmega2560;
 import parser.parser;
 import std.string;
 import std.conv;
@@ -368,9 +367,7 @@ final class Simulator(T) : BatchModeSimulator {
 
 unittest {
     import spec.base;
-    import spec.atmega2560;
     import parser.parser;
-    import spec.atmega2560;
     import spec.avrstate;
     enum AvrChipSpec testChip = AvrChipSpec();
 
