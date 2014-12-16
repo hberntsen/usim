@@ -1180,12 +1180,13 @@ class Elpm (AvrChipSpec chip): Instruction!(AvrState!chip) {
 
     this(in InstructionToken token) {
         super(token);
-        enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
-        if(token.parameters[1].length == 2) {
-            postinc = token.parameters[1][1] == '+';
-        }
-
-        regd = parseNumericRegister(token.parameters[0]);
+        if(token.parameters.length > 0) {
+            enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
+            if(token.parameters[1].length == 2) {
+                postinc = token.parameters[1][1] == '+';
+            }
+            regd = parseNumericRegister(token.parameters[0]);
+        } // else regd = 0, postinc = false, which are default values
 
         enforce(!((regd == 30 && postinc) || (regd == 31 && postinc)),
                 "Undefined behavior");
@@ -1214,8 +1215,9 @@ unittest {
     auto state = new AvrState!testChip();
     auto elpm = new Elpm!testChip(new InstructionToken(0,0,[], "elpm", ["r0", "Z+"]));
     auto elpm2 = new Elpm!testChip(new InstructionToken(0,2,[], "elpm", ["r1", "Z"]));
+    auto elpm3 = new Elpm!testChip(new InstructionToken(0,4,[], "elpm", []));
 
-    state.setInstructions([elpm, elpm2]);
+    state.setInstructions([elpm, elpm2, elpm3]);
     state.setIoRegisterByIo(0x3b, 0x01);
     state.zreg.value = 0x1000;
     state.program[0x011000] = 0xaa;
@@ -1227,7 +1229,10 @@ unittest {
     assert(state.zreg.value == 0x1001);
     state.fetchInstruction();
     elpm2.callback(state);
-    assert(state.valueRegisters[1].value = 0xbb);
+    assert(state.valueRegisters[1].value == 0xbb);
+    state.fetchInstruction();
+    elpm3.callback(state);
+    assert(state.valueRegisters[0].value == 0xbb);
 }
 
 
@@ -1547,12 +1552,13 @@ class Lpm (AvrChipSpec chip): Instruction!(AvrState!chip) {
 
     this(in InstructionToken token) {
         super(token);
-        enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
-        if(token.parameters[1].length == 2) {
-            postinc = token.parameters[1][1] == '+';
-        }
-
-        regd = parseNumericRegister(token.parameters[0]);
+        if(token.parameters.length > 0) {
+            enforce(token.parameters[1][0] == 'Z', "Elpm works on the Z register");
+            if(token.parameters[1].length == 2) {
+                postinc = token.parameters[1][1] == '+';
+            }
+            regd = parseNumericRegister(token.parameters[0]);
+        } // else regd = 0, postinc = false, which are default values
 
         enforce(!((regd == 30 && postinc) || (regd == 31 && postinc)),
                 "Undefined behavior");
