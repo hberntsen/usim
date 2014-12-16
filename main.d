@@ -35,6 +35,11 @@ void main(string[] args) {
         stderr.writeln("File ", filename, " could not be read");
         return;
     }
+    if(!(machine in machineFactories)) {
+        stderr.writefln("MCU %s not known, valid options: %s", machine,
+                machineFactories.keys);
+        return;
+    }
 
     ubyte[] data;
     InstructionToken[] instructions = parse(file, data);
