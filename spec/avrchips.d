@@ -18,7 +18,9 @@ static this() {
         chipType: AvrChipSpec.ChipType.REDUCED_CORE,
         dataSize: 96,
         programSize: 1024,
-        eepromSize: 0,
+        //Should be a 0, but ldc2 has some problems with that:
+        //https://github.com/ldc-developers/ldc/issues/812
+        eepromSize: 1,
         sregOffset: 0x3f,
         spOffset: 0x3d,
         valueRegistersInDataMemory: false,
