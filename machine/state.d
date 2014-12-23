@@ -167,6 +167,8 @@ interface MachineState {
     void jump(size_t address);
     void relativeJump(in int instructionOffset);
 
+    void update(cycleCount cycles);
+
     // todo: stack operations
 }
 

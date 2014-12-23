@@ -87,6 +87,8 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     private ReferenceRegister!(ubyte)[32] valueRegisters;
     ReferenceRegister!(ubyte)[64] ioRegisters;
     private ReferenceRegister!ushort[string] _refregs;
+    int resetEEMPECounter = 0;
+    int resetEEPECounter = 0;
 
     @property final size_t programCounter() {
         return instructions.next.address/2;
@@ -179,6 +181,28 @@ final class AvrState(AvrChipSpec chip) : MachineState {
 
     void relativeJump(in int instructionOffset) {
         instructions.relativeJump(instructionOffset);
+    }
+
+    void update(cycleCount cycles) {
+        if(resetEEMPECounter > 0) {
+            resetEEMPECounter -= cycles;
+            if(resetEEMPECounter <= 0) {
+                resetEEMPECounter = 0;
+                ubyte value = this.ioRegisters[chip.EECR].value;
+                value &= 0xff - chip.EEMPEMask;
+                this.ioRegisters[chip.EECR] = value;
+            }
+        }
+
+        if(resetEEPECounter > 0) {
+            resetEEPECounter -= cycles;
+            if(resetEEPECounter <= 0) {
+                resetEEPECounter = 0;
+                ubyte value = this.ioRegisters[chip.EECR].value;
+                value &= 0xff - chip.EEPEMask;
+                this.ioRegisters[chip.EECR] = value;
+            }
+        }
     }
 
     /// The program counter points to the instruction after this, push that
@@ -2659,39 +2683,60 @@ class Sbi(AvrChipSpec chip): Instruction!(AvrState!chip) {
     this(in InstructionToken token) {
         super(token);
         address = parseHex(token.parameters[0]);
-        assert(address <= 31);
+        //assert(address <= 31);
         bit = parseInt(token.parameters[1]);
         assert(0 <= bit && bit <= 7);
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.getIoRegisterByIo(address).value = state.getIoRegisterByIo(address).value | cast(ubyte)(1 << bit);
-        cycleCount halt = 0;
+        state.ioRegisters[address].value = state.ioRegisters[address].value | cast(ubyte)(1 << bit);
+        cycleCount cycles = 1;
+        if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
+            cycles = 2;
+        }
         if(address == chip.EECR) {
-            ubyte controlRegister = state.getIoRegisterByIo(address).value;
-            size_t address = state.getIoRegisterByIo(chip.EEARH).value << 8 | state.getIoRegisterByIo(chip.EEARL).value;
+            ubyte controlRegister = state.ioRegisters[address].value;
+            size_t EEARval = state.ioRegisters[chip.EEARH].value << 8 | state.ioRegisters[chip.EEARL].value;
             if(bit == chip.EEMPE) {
-                //TODO: reset after 4 cycles
+                state.resetEEMPECounter = 4 + cycles;
             }
             if(bit == chip.EEPE) {
                 if(controlRegister & chip.EEMPEMask) {
-                   state.eeprom[address] = state.getIoRegisterByIo(chip.EEDR).value;
-                    halt = 4;
+                    state.eeprom[EEARval] = state.ioRegisters[chip.EEDR].value;
+                    state.resetEEPECounter = (chip.EEPROMWriteTime * chip.clockSpeed + 500000) / 1000000 + cycles;
+                        //5e5 is for ceiling, 1e6 is to match units (us and Hz), also add cycles for current instruction
+                    cycles += 4; //chip is halted for 4 cycles
                 }
-                //TODO: reset after write is finished, instead of immediately
-                state.getIoRegisterByIo(address).value = controlRegister & chip.EEPEMask;
             }
             if(bit == chip.EERE) {
-                state.setIoRegisterByIo(chip.EEDR, state.eeprom[address]);
-                halt = 4;
+                state.ioRegisters[chip.EEDR].value = state.eeprom[EEARval];
+                cycles += 4; //chip is halted for 4 cycles
             }
         }
-        if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
-            return 2 + halt;
-        } else {
-            return 1 + halt;
-        }
+        return cycles;
     }
+}
+unittest {
+    auto state = new AvrState!testChip();
+    state.ioRegisters[testChip.EEDR].value = 0x42;
+    state.ioRegisters[testChip.EEARH].value = 0x1;
+    state.ioRegisters[testChip.EEARL].value = 0x23;
+    auto sbiEEMPE = new Sbi!testChip(new InstructionToken(0,0,[],"Sbi",["0x1f", "2"]));
+    auto sbiEEPE = new Sbi!testChip(new InstructionToken(0,0,[],"Sbi",["0x1f", "1"]));
+    
+    auto cycles = sbiEEMPE.callback(state);
+    assert(cycles == 2);
+    assert(state.ioRegisters[testChip.EECR].value == testChip.EEMPEMask);
+    state.update(cycles);
+    assert(state.ioRegisters[testChip.EECR].value == testChip.EEMPEMask);
+    cycles = sbiEEPE.callback(state);
+    assert(cycles == 6);
+    assert(state.ioRegisters[testChip.EECR].value == (testChip.EEMPEMask | testChip.EEPEMask));
+    state.update(cycles);
+    assert(state.ioRegisters[testChip.EECR].value == testChip.EEPEMask);
+    state.update(4000);
+    assert(state.ioRegisters[testChip.EECR].value == 0);
+    assert(state.eeprom[0x123] == 0x42);
 }
 
 class Sbic(AvrChipSpec chip) : SkipInstruction!chip {
@@ -2919,6 +2964,8 @@ struct AvrChipSpec {
     enum ChipType { OTHER=0, XMEGA=1, REDUCED_CORE=2}
     ChipType chipType = ChipType.OTHER;
 
+    size_t clockSpeed = 1000000; //Hz, 1.0 MHz
+
     size_t dataSize = 8*1024+512;
     size_t programSize = 256 * 1024;
     size_t eepromSize = 4 * 1024;
@@ -2936,10 +2983,11 @@ struct AvrChipSpec {
         return chipType != ChipType.REDUCED_CORE;
     }
 
-    size_t EEARH = 0x42;
-    size_t EEARL = 0x41;
-    size_t EEDR = 0x40;
-    size_t EECR = 0x3F;
+    size_t EEPROMWriteTime = 3400; //microseconds
+    size_t EEARH = 0x22;
+    size_t EEARL = 0x21;
+    size_t EEDR = 0x20;
+    size_t EECR = 0x1F;
     enum size_t EEPM1 = 5;
     enum size_t EEPM0 = 4;
     enum ubyte EEPMMask = 0x30;
