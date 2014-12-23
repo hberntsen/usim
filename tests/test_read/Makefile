@@ -6,7 +6,7 @@ AVROBJDUMP = /usr/bin/avr-objdump
 
 test_read_atmega2560.hex:  avr.c avr.h print.c print.h read.c read.h test_read.c
 	$(CC) $(CFLAGS) avr.c print.c read.c test_read.c -o test_read_atmega2560
-	$(AVROBJDUMP) -D test_read_atmega2560 > test_read_atmega2560.dump
+	$(AVROBJDUMP) -D -z test_read_atmega2560 > test_read_atmega2560.dump
 
 
 .PHONY: clean

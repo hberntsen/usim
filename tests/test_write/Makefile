@@ -6,7 +6,7 @@ AVROBJDUMP = /usr/bin/avr-objdump
 
 test_write_atmega2560.hex:  avr.c avr.h print.c print.h test_write.c
 	$(CC) $(CFLAGS) avr.c print.c test_write.c -o test_write_atmega2560
-	$(AVROBJDUMP) -D test_write_atmega2560 > test_write_atmega2560.dump
+	$(AVROBJDUMP) -D -z test_write_atmega2560 > test_write_atmega2560.dump
 
 
 .PHONY: clean
