@@ -102,10 +102,10 @@ class ReferenceRegister(T) : Register {
 unittest {
     Memory data = new Memory(8*1024+512,0);
     size_t stackPointerLocation = 0x5d;
-    auto stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data);
+    auto stackPointer = new ReferenceRegister!ushort("SP",cast(size_t)0x5d, data_);
     stackPointer.value = 123;
     assert(stackPointer.value == 123);
-    stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data.size - 2);
+    stackPointer.value = 8703;// equals 0b1111111100100001 or cast(ushort)(data_.size - 2);
     assert(stackPointer.value == 8703);
     assert(data[stackPointerLocation] == 0xFF); //Low byte
     assert(data[stackPointerLocation+1] == 0b00100001); //High byte
@@ -113,10 +113,11 @@ unittest {
 }
 
 final class Memory {
-    ubyte[] data;
+    ubyte[] data_;
     size_t offset;
+    @property ubyte[] data() { return data_; }
 
-    @property size_t size() { return data.length;}
+    @property size_t size() { return data_.length;}
 
     size_t opDollar() {
         return size + offset;
@@ -124,36 +125,41 @@ final class Memory {
 
     this(size_t size, size_t offset =0) {
         this.offset = offset;
-        this.data = new ubyte[size];
+        this.data_ = new ubyte[size];
     }
 
-    this(ubyte[] data, size_t offset=0) {
-        this.data = data;
+    this(ubyte[] data_, size_t offset=0) {
+        this.data_ = data_;
     }
 
     override string toString() {
-        return format("%s", data);
+        return format("%s", data_);
     }
 
     ubyte opIndex(size_t i) {
-        return data[i - offset];
+        return data_[i - offset];
     }
 
     ubyte opIndexAssign(ubyte value, size_t i) {
-        data[i - offset] = value;
+        data_[i - offset] = value;
         return value;
     }
 
+    Memory opAssign(ubyte[] value) {
+        data_[offset .. value.length + offset] = value;
+        return this;
+    }
+
     void opSliceAssign(in ubyte[] value, size_t i, size_t j) {
-        data[i - offset .. j -offset] = value;
+        data_[i - offset .. j -offset] = value;
     }
 
     const(ubyte[]) opSlice(size_t i1, size_t i2) const {
-        return data[i1 - offset .. i2 - offset];
+        return data_[i1 - offset .. i2 - offset];
     }
 
     ubyte[] opSlice(size_t i1, size_t i2) {
-        return data[i1 - offset .. i2 - offset];
+        return data_[i1 - offset .. i2 - offset];
     }
 }
 

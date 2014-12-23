@@ -27,6 +27,8 @@ interface BatchModeSimulator {
     string handleDebugCommand(string command);
     @property string file();
     @property string file(string filepath);
+    @property MachineState machineState();
+    @property MachineState machineState(MachineState newState);
 }
 
 struct DebuggerState {
@@ -62,15 +64,17 @@ struct DebuggerState {
 
 //Input: initial machine state (code is part of the machine state)
 final class Simulator(T) : BatchModeSimulator {
-    T machineState;
+    T machineState_;
     SimulatorState simulatorState;
     DebuggerState debuggerState;
     private string file_;
     @property string file() { return file_;}
     @property string file(string newFile) { file_=newFile; return newFile;}
+    @property MachineState machineState() { return machineState_; }
+    @property MachineState machineState(MachineState newState) { machineState_ = cast(T)(newState); return machineState_; }
 
     this(T initialState) {
-        this.machineState = initialState;
+        this.machineState_ = initialState;
         this.simulatorState = SimulatorState(0);
         this.debuggerState = DebuggerState();
     }
@@ -94,7 +98,7 @@ final class Simulator(T) : BatchModeSimulator {
         auto commandAbbrev = abbrev(commands.keys);
 
         string[] registers;
-        foreach (idx, register; machineState.registers) {
+        foreach (idx, register; machineState_.registers) {
             registers ~= format("r%02d %s", idx, register);
         }
 
@@ -104,22 +108,22 @@ final class Simulator(T) : BatchModeSimulator {
                     "file:\t%s \ncycles:\t%d \nregs:\t%s \nsp:\t%s \nlast:\t%s \ncurr:\t%s\nsreg:\t%s \n",
                     this.file,
                     simulatorState.cycles,
-                    machineState.refregs,
-                    machineState.stackPointer,
-                    machineState.currentInstruction,
-                    machineState.nextInstruction,
-                    machineState.sreg
+                    machineState_.refregs,
+                    machineState_.stackPointer,
+                    machineState_.currentInstruction,
+                    machineState_.nextInstruction,
+                    machineState_.sreg
             );
         }
 
-        ubyte[] mem = machineState.data;
+        ubyte[] mem = machineState_.data;
 
         if (parameters[0] in commandAbbrev) {
             switch(commandAbbrev[parameters[0]]) {
                 case "io":
-                    //return format("%s\n", machineState.ioRegisters);
+                    //return format("%s\n", machineState_.ioRegisters);
                     string[] dataSlice;
-                    foreach (idx, el; machineState.ioRegisters) {
+                    foreach (idx, el; machineState_.ioRegisters) {
                         auto addr = cast(ushort)(idx + 0x20);
                         dataSlice ~= format("0x%x %s", addr, el);
                     }
@@ -128,11 +132,11 @@ final class Simulator(T) : BatchModeSimulator {
                 case "breakpoints":
                     return join(debuggerState.getBreakpoints(), "\n") ~ "\n";
                 case "xyz":
-                    auto xyz = machineState.refregs;
+                    auto xyz = machineState_.refregs;
                     return format("X: %s\nY: %s\nZ: %s\n", xyz["X"],
                             xyz["Y"], xyz["Z"]);
                 case "flags":
-                    auto flags = machineState.sreg;
+                    auto flags = machineState_.sreg;
                     ushort[string] repr = [
                         "I": flags.I() ? 1 : 0,
                         "T": flags.T() ? 1 : 0,
@@ -152,16 +156,16 @@ final class Simulator(T) : BatchModeSimulator {
                 case "file":
                     return this.file ~ "\n";
                 case "stack":
-                    auto sp = machineState.stackPointer;
-                    //auto initialSp = cast(ushort)(machineState.data.size - 2); // TODO configurable?
+                    auto sp = machineState_.stackPointer;
+                    //auto initialSp = cast(ushort)(machineState_.data.size - 2); // TODO configurable?
 
                     writefln("sp: %s, datalen: %x", sp,
-                            cast(ushort)(machineState.data.length));
-                    if (sp.value  + 1 > machineState.data.length) {
+                            cast(ushort)(machineState_.data.length));
+                    if (sp.value  + 1 > machineState_.data.length) {
                         return format("Error when reading stack, SP: %s", sp);
                     }
 
-                    ubyte[] stack = machineState.data[sp.value + 1 .. $];
+                    ubyte[] stack = machineState_.data[sp.value + 1 .. $];
                     string[] stackRepr;
                     foreach (idx, el; stack) {
                         stackRepr ~= format("0x%06x 0x%02x", sp + idx, el);
@@ -185,12 +189,12 @@ final class Simulator(T) : BatchModeSimulator {
                     }
                     return join(registerSet, "\n") ~ "\n";
                 case "instruction":
-                    return format("%s\n", machineState.nextInstruction);
+                    return format("%s\n", machineState_.nextInstruction);
                 case "program":
-                    mem = machineState.program;
+                    mem = machineState_.program;
                     goto case "data";
                 case "eeprom":
-                    mem = machineState.eeprom;
+                    mem = machineState_.eeprom;
                     goto case;
                 case "data":
                     if (parameters.length < 2) {
@@ -286,7 +290,7 @@ final class Simulator(T) : BatchModeSimulator {
                     step();
                     break;
                 case "skip":
-                    auto instr = machineState.fetchInstruction();
+                    auto instr = machineState_.fetchInstruction();
                     return format("Skipping instruction: %s\n", instr);
                 case "continue":
                     continueUntilBreakpoint();
@@ -312,15 +316,15 @@ final class Simulator(T) : BatchModeSimulator {
         StopWatch stopWatch;
         try {
             stopWatch.start();
-            size_t lastAddress, currentAddress = machineState.nextInstruction.address;
+            size_t lastAddress, currentAddress = machineState_.nextInstruction.address;
             do {
                 if (withBreakpoints &&
                         debuggerState.hasBreakpoint(
-                            machineState.nextInstruction.token.lineNumber)) {
+                            machineState_.nextInstruction.token.lineNumber)) {
                     break;
                 }
                 lastAddress = step();
-                currentAddress = machineState.nextInstruction.address;
+                currentAddress = machineState_.nextInstruction.address;
                 //writefln("last executed: %x, to be executed: %x", lastAddress, currentAddress);
             } while(lastAddress != currentAddress);
             stopWatch.stop();
@@ -331,8 +335,8 @@ final class Simulator(T) : BatchModeSimulator {
             stderr.writeln("Error");
             stderr.writeln(e);
 
-            stderr.writeln(machineState.currentInstruction());
-            debug stderr.writeln(machineState.currentInstruction().token);
+            stderr.writeln(machineState_.currentInstruction());
+            debug stderr.writeln(machineState_.currentInstruction().token);
         }
         this.simulatorState.runningTime = stopWatch.peek();
         return this.simulatorState;
@@ -343,22 +347,22 @@ final class Simulator(T) : BatchModeSimulator {
     }
 
     size_t step() {
-        //writefln("\tPC (before): %x", machineState.programCounter);
-        auto instr = this.machineState.fetchInstruction();
+        //writefln("\tPC (before): %x", machineState_.programCounter);
+        auto instr = this.machineState_.fetchInstruction();
         //writefln("\tToken: %s", instr.token);
-        //writefln("\tRefrefs (before): %s", machineState.refregs);
-        //writefln("\tRegisters (before): %s", machineState.registers);
-        //writefln("\tFlags (before): %s", machineState.sreg);
-        //writefln("\tSP (before): %s", machineState.stackPointer);
+        //writefln("\tRefrefs (before): %s", machineState_.refregs);
+        //writefln("\tRegisters (before): %s", machineState_.registers);
+        //writefln("\tFlags (before): %s", machineState_.sreg);
+        //writefln("\tSP (before): %s", machineState_.stackPointer);
         //writefln("\tStack (before): [%(%x, %)]",
-                //machineState.data[machineState.stackPointer+1 .. $]);
+                //machineState_.data[machineState_.stackPointer+1 .. $]);
         //writef("Applying instruction '%s'", instr.name);
-        const ulong cycles = instr.callback(machineState);
+        const ulong cycles = instr.callback(machineState_);
         //writefln(" - DONE (%d cycles)", cycles);
-        //writefln("\tSP (after): %s", machineState.stackPointer);
-        //writefln("\tRefrefs (after): %s", machineState.refregs);
-        //writefln("\tRegisters (after): %s", machineState.registers);
-        //writefln("\tFlags (after): %s", machineState.sreg);
+        //writefln("\tSP (after): %s", machineState_.stackPointer);
+        //writefln("\tRefrefs (after): %s", machineState_.refregs);
+        //writefln("\tRegisters (after): %s", machineState_.registers);
+        //writefln("\tFlags (after): %s", machineState_.sreg);
 
         this.simulatorState.cycles += cycles;
         return instr.address;

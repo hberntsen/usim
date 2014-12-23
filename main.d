@@ -4,6 +4,7 @@ import std.stdio;
 import std.getopt;
 import std.socket;
 import std.string;
+import std.file;
 
 import parser.parser;
 import spec.avrchips;
@@ -18,6 +19,7 @@ void main(string[] args) {
          batchMode = false;
     string machine = "atmega2560";
     ushort port = 3742;
+    string[string] memFilenames;
 
     getopt(args,
             "batch", &batchMode,
@@ -25,7 +27,8 @@ void main(string[] args) {
             "file", &filename,
             "mcu", &machine,
             "port", &port,
-            "stats", &showStatistics);
+            "stats", &showStatistics,
+            "memFile", &memFilenames);
 
     File file;
     try {
@@ -45,8 +48,11 @@ void main(string[] args) {
     InstructionToken[] instructions = parse(file, data);
     file.close();
 
+
     auto simulatorFactory = machineFactories[machine];
     auto sim = simulatorFactory.createBatchModeSimulator(instructions, data);
+    
+    readMemFiles(memFilenames, sim.machineState);
 
     if (debugMode) {
         sim.file = filename;
@@ -97,8 +103,32 @@ void main(string[] args) {
     } else if (batchMode) {
     } else {
         auto simulatorState = sim.run();
+        writeMemFiles(memFilenames, sim.machineState);
         if(showStatistics) {
             stderr.writeln(simulatorState);
         }
     }
+}
+
+void readMemFiles(string[string] filenames, MachineState machineState) {
+    foreach (string mem, string filename; filenames) {
+        try {
+            filename = chomp(filename);
+            machineState.memories[mem] = cast(ubyte[])(read(filename));
+        } catch {
+            stderr.writeln("Memory file ", filename, " could not be read");
+        }
+    }
+}
+
+void writeMemFiles(string[string] filenames, MachineState machineState) {
+   foreach(string mem, string filename; filenames) {
+       try {
+            filename = chomp(filename);
+            std.file.write(filename, machineState.memories[mem].data);
+       } catch (Exception e) {
+            stderr.writeln("Memory file ", filename, " could not be written:");
+            stderr.writeln(e.msg);
+       }
+   }
 }

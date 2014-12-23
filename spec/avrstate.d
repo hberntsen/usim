@@ -148,7 +148,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     }
 
     @property Memory[string] memories() {
-        return ["data": new Memory(data), "program": new Memory(program)];
+        return ["data": new Memory(data), "program": new Memory(program), "eeprom": new Memory(eeprom)];
     }
 
     @property Register[] registers() {
