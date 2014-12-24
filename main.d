@@ -9,6 +9,7 @@ import std.file;
 import parser.parser;
 import spec.avrchips;
 import machine.state;
+import machine.factory;
 import simulator.simulator;
 import spec.avrstate;
 

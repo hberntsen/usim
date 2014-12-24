@@ -5,7 +5,6 @@ import std.conv;
 import std.string;
 
 import parser.parser;
-import machine.state;
 
 alias cycleCount = uint;
 

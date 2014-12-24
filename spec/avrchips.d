@@ -1,6 +1,7 @@
 module spec.avrchips;
 
 import machine.state;
+import machine.factory;
 import spec.avrstate;
 
 static this() {

@@ -7,6 +7,7 @@ import std.string;
 
 import spec.base;
 import machine.state;
+import machine.factory;
 import std.bitmanip;
 import core.bitop;
 import parser.parser : InstructionToken;
