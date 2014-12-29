@@ -127,14 +127,13 @@ final class Simulator(T) : BatchModeSimulator {
                         auto addr = cast(ushort)(idx + 0x20);
                         dataSlice ~= format("0x%x %s", addr, el);
                     }
-
                     return join(dataSlice, "\n") ~ "\n";
                 case "breakpoints":
                     return join(debuggerState.getBreakpoints(), "\n") ~ "\n";
                 case "xyz":
                     auto xyz = machineState_.refregs;
-                    return format("X: %s\nY: %s\nZ: %s\n", xyz["X"],
-                            xyz["Y"], xyz["Z"]);
+                    return format("X: %s\nY: %s\nZ: %s\n", xyz[0],
+                            xyz[1], xyz[2]);
                 case "flags":
                     auto flags = machineState_.sreg;
                     ushort[string] repr = [

@@ -87,7 +87,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     private InstructionsWrapper!(AvrState!chip) instructions;
     private ReferenceRegister!(ubyte)[32] valueRegisters;
     ReferenceRegister!(ubyte)[64] ioRegisters;
-    private ReferenceRegister!ushort[string] _refregs;
+    ReferenceRegister!ushort[3] refregs;
     int resetEEMPECounter = 0;
     ulong resetEEPECounter = 0;
 
@@ -141,11 +141,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
             //We are always done reading and writing the byte
             data[dest] = data[dest] | chip.UCRSAMask;
         }
-        _refregs = ["X": xreg, "Y": yreg, "Z": zreg];
-    }
-
-    @property ReferenceRegister!ushort[string] refregs() {
-        return _refregs;
+        refregs = [xreg, yreg, zreg];
     }
 
     @property Memory[string] memories() {
@@ -301,6 +297,21 @@ final class AvrState(AvrChipSpec chip) : MachineState {
             addr -= 0x40;
         }
         return this.ioRegisters[addr];
+    }
+}
+
+abstract class AvrInstruction(AvrChipSpec chip) : Instruction!(AvrState!chip) {
+    this(in InstructionToken tok) {super(tok);}
+
+    final protected size_t parseReferenceRegister(string param) {
+        string firstChar = param[0..1].dup;
+        switch(firstChar) {
+            case "X": return 0;
+            case "Y": return 1;
+            case "Z": return 2;
+            default: throw new Exception(format(
+                            "Cannot parse %s as reference register", param));
+        }
     }
 }
 
@@ -1385,10 +1396,10 @@ class Inc (AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 }
 
-final class Ld(AvrChipSpec chip): Instruction!(AvrState!chip) {
+final class Ld(AvrChipSpec chip): AvrInstruction!chip {
     private bool predec, postinc;
     private uint regd;
-    private string refreg;
+    private size_t refreg;
 
     this(in InstructionToken token) {
         super(token);
@@ -1396,13 +1407,13 @@ final class Ld(AvrChipSpec chip): Instruction!(AvrState!chip) {
             predec = token.parameters[1][0] == '-';
             postinc = token.parameters[1][1] == '+';
             if (predec) {
-                refreg = token.parameters[1][1 .. 2].dup;
+                refreg = parseReferenceRegister(token.parameters[1][1 .. 2].dup);
             }
             if (postinc) {
-                refreg = token.parameters[1][0 .. 1].dup;
+                refreg = parseReferenceRegister(token.parameters[1]);
             }
         } else {
-                refreg = token.parameters[1][0 .. 1].dup;
+                refreg = parseReferenceRegister(token.parameters[1]);
         }
 
         regd = parseNumericRegister(token.parameters[0]);
@@ -1456,16 +1467,16 @@ final class Ld(AvrChipSpec chip): Instruction!(AvrState!chip) {
 }
 
 //todo: reduced core
-class Ldd (AvrChipSpec chip): Instruction!(AvrState!chip) {
-    uint q;
-    uint regd;
-    string refreg;
+class Ldd (AvrChipSpec chip): AvrInstruction!chip {
+    immutable uint q;
+    immutable uint regd;
+    immutable size_t refreg;
 
     this(in InstructionToken token) {
         super(token);
         enforce(token.parameters[1][1] == '+');
         q = parseHex(token.parameters[1][2..$]);
-        refreg = token.parameters[1][0 .. 1].dup;
+        refreg = parseReferenceRegister(token.parameters[1]);
         regd = parseNumericRegister(token.parameters[0]);
     }
 
@@ -1674,9 +1685,9 @@ class Out(AvrChipSpec chip): Instruction!(AvrState!chip) {
 }
 
 /* Store indirect from register to data space using index */
-class St(AvrChipSpec chip): Instruction!(AvrState!chip) {
+class St(AvrChipSpec chip): AvrInstruction!chip {
     bool preinc, predec, postinc, postdec; //Probably not the most beautiful way...
-    string refreg;
+    size_t refreg;
     uint regr;
 
     this(in InstructionToken token) {
@@ -1685,15 +1696,15 @@ class St(AvrChipSpec chip): Instruction!(AvrState!chip) {
             preinc = token.parameters[0][0] == '+';
             predec = token.parameters[0][0] == '-';
             if(preinc || predec)
-                refreg = token.parameters[0][1..$].dup;
+                refreg = parseReferenceRegister(token.parameters[0][1..$].dup);
             else {
                 postinc = token.parameters[0][1] == '+';
                 postdec = token.parameters[0][1] == '-';
-                refreg = token.parameters[0][0..1].dup;
+                refreg = parseReferenceRegister(token.parameters[0]);
             }
         }
         else
-            refreg = token.parameters[0];
+            refreg = parseReferenceRegister(token.parameters[0]);
 
         regr = parseNumericRegister(token.parameters[1]);
     }
@@ -2557,14 +2568,14 @@ class Sleep (AvrChipSpec chip): Instruction!(AvrState!chip) {
 }
 
 //todo reduced core / xmega cycles
-class Std (AvrChipSpec chip): Instruction!(AvrState!chip) {
-    string refreg;
+class Std (AvrChipSpec chip): AvrInstruction!chip {
+    size_t refreg;
     uint q;
     uint regr;
 
     this(in InstructionToken token) {
         super(token);
-        refreg = token.parameters[0][0..1].dup;
+        refreg = parseReferenceRegister(token.parameters[0]);
         assert(token.parameters[0][1] == '+');
         q = parseHex(token.parameters[0][2..$]);
         regr = parseNumericRegister(token.parameters[1]);
