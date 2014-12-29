@@ -18,13 +18,13 @@ private enum AvrChipSpec testChip = AvrChipSpec();
 
 final class Sreg : ReferenceRegister!ubyte {
     public bool getBit(uint bitNum) const {
-        return cast(bool)(bytes()[0] & (1 << bitNum));
+        return cast(bool)(value & (1 << bitNum));
     }
     private bool setBit(uint bitNum, bool state) {
         if(state) {
-            bytes[0] |= 1 << bitNum;
+            this.value = cast(ubyte) (this.value | 1 << bitNum);
         } else {
-            bytes[0] &= ~(1 << bitNum);
+            this.value = cast(ubyte) (this.value & ~(1 << bitNum));
         }
         return state;
     }

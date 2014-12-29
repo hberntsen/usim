@@ -64,7 +64,7 @@ struct DebuggerState {
 
 //Input: initial machine state (code is part of the machine state)
 final class Simulator(T) : BatchModeSimulator {
-    T machineState_;
+    private T machineState_;
     SimulatorState simulatorState;
     DebuggerState debuggerState;
     private string file_;
