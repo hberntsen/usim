@@ -51,6 +51,7 @@ class SimpleRegister(T) : Register
 }
 
 class ReferenceRegister(T) : Register {
+    private T* valuePointer;
     private ubyte[] slice2;
 
     //TODO: somehow does not compile
@@ -78,11 +79,11 @@ class ReferenceRegister(T) : Register {
         alias value this;
 
         @property T value() const {
-            return *cast(T*)&slice2[0];
+            return *valuePointer;
         }
 
         @property T value(T newValue) {
-            *cast(T*)&slice2[0] = newValue;
+            *valuePointer = newValue;
             return newValue;
         }
     }
@@ -90,11 +91,13 @@ class ReferenceRegister(T) : Register {
     this(in string name, in size_t offset, Memory raw) {
         super(name);
         slice2 = raw[offset .. offset + T.sizeof];
+        valuePointer = cast(T*)&slice2[0];
     }
 
     this(in string name, in size_t offset, ubyte[] raw) {
         super(name);
         slice2 = raw[offset .. offset + T.sizeof];
+        valuePointer = cast(T*)&slice2[0];
     }
 }
 
