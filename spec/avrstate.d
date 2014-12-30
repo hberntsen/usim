@@ -89,7 +89,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     ReferenceRegister!(ubyte)[64] ioRegisters;
     ReferenceRegister!ushort[3] refregs;
     int resetEEMPECounter = 0;
-    ulong resetEEPECounter = 0;
+    long resetEEPECounter = 0;
 
     @property final size_t programCounter() {
         return instructions.next.address/2;
