@@ -204,9 +204,9 @@ final class AvrState(AvrChipSpec chip) : MachineState {
 
     /// The program counter points to the instruction after this, push that
     ///on the stack
-    void pushProgramCounter(AvrChipSpec c)() {
+    void pushProgramCounter() {
         size_t pc = programCounter;
-        if(c.pcSizeBytes == 2) {
+        if(chip.pcSizeBytes == 2) {
             ubyte[2] pcBytes = [cast(ubyte)(pc), cast(ubyte)(pc >>> 8)];
             data[stackPointer.value -1 .. stackPointer.value+1] = pcBytes;
             stackPointer.value = cast(ushort)(stackPointer.value - 2);
@@ -217,8 +217,8 @@ final class AvrState(AvrChipSpec chip) : MachineState {
         }
     }
 
-    void popProgramCounter(AvrChipSpec c)() {
-        if(c.pcSizeBytes == 2) {
+    void popProgramCounter() {
+        if(chip.pcSizeBytes == 2) {
             size_t newPc = data[stackPointer + 1] + (data[stackPointer + 2] << 8);
             stackPointer.value = cast(ushort)(stackPointer.value + 2);
             jump(newPc * 2);
@@ -827,7 +827,7 @@ class Call(AvrChipSpec chip) : Instruction!(AvrState!chip) {
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.pushProgramCounter!chip();
+        state.pushProgramCounter();
         state.jumpIndex(dest);
         if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
             if(chip.pcSizeBytes == 3) {
@@ -1153,16 +1153,7 @@ class Eicall(AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        //todo: remove new and do it like hans in rcall
-        ubyte[] pcBytes = new ubyte[size_t.sizeof];
-
-        //Convert PC+1 to bytes and store it on the stack
-        pcBytes.write!(size_t, Endian.littleEndian)(state.programCounter, 0);
-        state.data[state.stackPointer.value -2 .. state.stackPointer.value+1] =
-            pcBytes[0 .. 3];
-
-        state.stackPointer.value = cast(ushort)(state.stackPointer.value - 3);
-
+        state.pushProgramCounter();
         size_t z = cast(size_t)(state.zreg);
         size_t eind = state.getIoRegisterByIo(chip.RAMPZ);
 
@@ -1298,7 +1289,7 @@ class Icall(AvrChipSpec chip): Instruction!(AvrState!chip) {
     this(in InstructionToken token) { super(token); }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.pushProgramCounter!chip();
+        state.pushProgramCounter();
         state.jump(2*state.zreg);
 
         if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
@@ -1793,7 +1784,7 @@ class Ret(AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.popProgramCounter!chip();
+        state.popProgramCounter();
         if(chip.pcSizeBytes == 2) {
             return 4;
         } else {
@@ -1808,7 +1799,7 @@ class Reti(AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.popProgramCounter!chip();
+        state.popProgramCounter();
         state.sreg.I = true;
         if(chip.pcSizeBytes == 2) {
             return 4;
@@ -2226,7 +2217,7 @@ class Rcall(AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 
     override cycleCount callback(AvrState!chip state) const {
-        state.pushProgramCounter!chip();
+        state.pushProgramCounter();
         state.jumpIndex(dest);
         if(chip.chipType == AvrChipSpec.ChipType.XMEGA) {
             if(chip.pcSizeBytes == 3) {
