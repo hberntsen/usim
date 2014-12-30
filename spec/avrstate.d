@@ -1707,7 +1707,7 @@ class St(AvrChipSpec chip): AvrInstruction!chip {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
         ushort addr = state.refregs[refreg];
-        enforce(addr < state.data.length, format("Address too high: %x --- Instruction: %s", addr, token));
+        debug enforce(addr < state.data.length, format("Address too high: %x --- Instruction: %s", addr, token));
         state.data[addr] = state.valueRegisters[regr].value;
 
         if(postinc)

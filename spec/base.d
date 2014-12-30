@@ -39,7 +39,6 @@ abstract class Instruction(T) {
     }
 
     protected static uint parseHex(string param) {
-        //enforce(param[0..2] == "0x");
         if (param.length > 2 && param[0..2] == "0x") {
             string numericPart = param[2..$];
             return parse!uint(numericPart, 16); // parse!int(param[2..$],16);
@@ -72,7 +71,7 @@ struct InstructionsWrapper(T) {
     }
 
     @property Instruction!T next() {
-        if (nextIndex >= instructions.length) {
+        debug if (nextIndex >= instructions.length) {
             return null;
         }
         return instructions[nextIndex];
@@ -124,7 +123,7 @@ struct InstructionsWrapper(T) {
 
     Instruction!T fetch() {
         auto instr = next();
-        if (instr is null) {
+        debug if (instr is null) {
             throw new EOFException();
         }
         currentIndex = nextIndex;
