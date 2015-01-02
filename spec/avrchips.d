@@ -13,7 +13,7 @@ static this() {
         programSize: 8*1024,
         eepromSize: 512
     };
-    machineFactories["atmega88"] = new AvrFactory!atmega2560();
+    machineFactories["atmega88"] = new AvrFactory!atmega88();
 
     enum AvrChipSpec attiny10 = {
         chipType: AvrChipSpec.ChipType.REDUCED_CORE,
