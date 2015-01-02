@@ -3054,6 +3054,9 @@ class AvrFactory(AvrChipSpec chip) : MachineFactory {
 
     override MachineState createState(in InstructionToken[] tokens, in ubyte[] data) const {
         auto state = new AvrState!chip();
+        enforce(data.length <= state.program.length,format(
+                "Supplied code (%d bytes) does not fit in the program memory (%d bytes) of this chip"
+                ,data.length, state.program.length));
         state.setInstructions(createInstructions(tokens));
         state.program[0 .. data.length] = data;
         return state;
