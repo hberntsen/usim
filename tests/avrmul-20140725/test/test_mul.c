@@ -11,13 +11,15 @@ extern void karatsuba80_branchfree(unsigned char *r, const unsigned char *a, con
 extern void karatsuba96_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba96_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba128_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
-extern void karatsuba128_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
-extern void karatsuba160_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba160_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
-extern void karatsuba192_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba192_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba256_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
+#ifdef ALL
+extern void karatsuba128_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
+extern void karatsuba160_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
+extern void karatsuba192_branched(unsigned char *r, const unsigned char *a, const unsigned char *b);
 extern void karatsuba256_branchfree(unsigned char *r, const unsigned char *a, const unsigned char *b);
+#endif
 
 static void test_mul(void (*func)(unsigned char *, const unsigned char *, const unsigned char *), unsigned int inbytes)
 {
@@ -74,19 +76,27 @@ int main()
 
   //128 bits
   test_mul(karatsuba128_branched, 16);
+#ifdef ALL
   test_mul(karatsuba128_branchfree, 16);
+#endif
 
   //160 bits
+#ifdef ALL
   test_mul(karatsuba160_branched, 20);
+#endif
   test_mul(karatsuba160_branchfree, 20);
 
   //192 bits
+#ifdef ALL
   test_mul(karatsuba192_branched, 24);
+#endif
   test_mul(karatsuba192_branchfree, 24);
 
   //256 bits
   test_mul(karatsuba256_branched, 32);
+#ifdef ALL
   test_mul(karatsuba256_branchfree, 32);
+#endif
 
   avr_end();
   return 0;

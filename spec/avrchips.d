@@ -15,6 +15,13 @@ static this() {
     };
     machineFactories["atmega88"] = new AvrFactory!atmega88();
 
+    enum AvrChipSpec atmega328 = {
+        dataSize: 2048+512,
+        programSize: 32*1024,
+        eepromSize: 1024
+    };
+    machineFactories["atmega328"] = new AvrFactory!atmega328();
+
     enum AvrChipSpec attiny10 = {
         chipType: AvrChipSpec.ChipType.REDUCED_CORE,
         dataSize: 96,
