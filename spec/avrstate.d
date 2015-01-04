@@ -1817,8 +1817,8 @@ class Rjmp(AvrChipSpec chip): Instruction!(AvrState!chip) {
         int jumpOffset = parseInt(token.parameters[0]);
         // *2 since the instruction set manual specifies k in words and we use
         // bytes
-        assert(jumpOffset <= 2000*2);
-        assert(-2000*2 <= jumpOffset);
+        assert(jumpOffset < 2048*2);
+        assert(-2048*2 <= jumpOffset);
         dest = (address + 2 + jumpOffset + 2*chip.pcMax) % (chip.pcMax*2);
     }
 
