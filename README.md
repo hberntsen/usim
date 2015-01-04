@@ -14,11 +14,11 @@ With this in mind, this simulator and debugger is developed, that allows you to 
 To compile our code, you first need a [D compiler](http://dlang.org/download.html). We find that [ldc](https://github.com/ldc-developers/ldc) yields the fastest results, but if you prefer `dmd` or `gdc`, those are fine as well. Our Makefile uses `ldc2`, though. To compile our code using `ldc2`, simply run `make`.
 
 ### Preparing input
-μsim does not not run on a binary, but on the format produced by `objdump`. Compile the code that you want to run on the simulator and do the following.
+μsim does not run on a binary, but on the format produced by `avr-objdump`. Compile the code that you want to run on the simulator and do the following.
 ```bash
 $ avr-objdump -D -z myprogram > myprogram.dump
 ```
-The -D and -z flags are necessary to prevent errors while simulating the code. Also make sure that your avr-objdump version at least 2.24.
+The -D and -z flags are necessary to disassemble everything that is needed to simulate the code. Also make sure that your avr-objdump version is at least 2.24, because otherwise a bug may call for undefined behaviour.
 
 ### Running modes
 μsim supports three running modes.
@@ -27,13 +27,13 @@ The -D and -z flags are necessary to prevent errors while simulating the code. A
 ```bash
 $ ./usim myprogram.dump
 ```
-Instead of simulating all hardware details, serial output is written to stdout, just like serial input is read from stdin, for easy debugging purposes.
+This simulates the ATMega2560 microcontroller while running your program and shows the exact number of cycles that were used. Some hardware details are omitted. For instance, serial output is written to stdout, just like serial input is read from stdin, for easy debugging purposes.
 
 **Debug mode** Second, μsim can be run in debugger mode.
 ```bash
 $ ./usim --debug myprogram.dump
 ```
-The program now starts listening on a TCP port, 3742 by default. The debugger interface may connect with `./debug.py`, assuming `python` links to at least Python 3.3.
+The program now starts listening on a TCP port, 3742 by default. The debugger interface may connect with `./debug.py`, assuming `python` is symlinked to at least Python 3.3.
 
 **Batch mode** μsim also supports a batch mode for simulating a lot at once.
 ```bash
