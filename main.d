@@ -22,23 +22,28 @@ void main(string[] args) {
     ushort port = 3742;
     string[string] memFilenames;
 
-    getopt(args,
-            "batch", &batchMode,
-            "debug", &debugMode,
-            "file", &filename,
-            "mcu", &machine,
-            "port", &port,
-            "stats", &showStatistics,
-            "memFile", &memFilenames);
+    if(args.length < 2) {
+        printUsage();
+        return;
+    }
 
     File file;
     try {
-        filename = chomp(filename);
+        filename = chomp(args[args.length-1]);
         file = File(filename, "r");
     } catch {
         stderr.writeln("File ", filename, " could not be read");
         return;
     }
+
+    getopt(args,
+            "batch", &batchMode,
+            "debug", &debugMode,
+            "mcu", &machine,
+            "port", &port,
+            "stats", &showStatistics,
+            "memfile", &memFilenames);
+
     if(!(machine in machineFactories)) {
         stderr.writefln("MCU %s not known, valid options: %s", machine,
                 machineFactories.keys);
@@ -132,4 +137,17 @@ void writeMemFiles(string[string] filenames, MachineState machineState) {
             stderr.writeln(e.msg);
        }
    }
+}
+
+void printUsage() {
+    stdout.writeln("Usage: ./usim [OPTIONS] <objdump>");
+    stdout.writeln("Options: --batch         Use batch mode [false]");
+    stdout.writeln("         --debug         Use debug mode [false]");
+    stdout.writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
+    stdout.writefln("                         One of {%-(%s,%)}", machineFactories.keys);
+    stdout.writeln("         --port <nr>     Set port for debugger [3742]");
+    stdout.writeln("         --stats=false   Show statistics [true]");
+    stdout.writeln("         --memfile <memtype=filename> Files that contain initial memory at");
+    stdout.writeln("                         start and to which final memory contents are written");
+    stdout.writeln("Note that <objdump> is the output of `avr-objdump -D -z <binary>`");
 }
