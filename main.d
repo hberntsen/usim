@@ -8,6 +8,7 @@ import std.file;
 import std.parallelism;
 import std.array;
 import std.stream : MemoryStream;
+import std.string;
 
 import parser.parser;
 import spec.avrchips;
@@ -22,6 +23,7 @@ void main(string[] args) {
          debugMode = false,
          batchMode = false;
     string machine = "atmega2560";
+    char batchInputSeparator = '\n';
     ushort port = 3742;
     size_t batchCount = 1;
     string[string] memFilenames;
@@ -113,6 +115,21 @@ void main(string[] args) {
         }
     } else if (batchMode) {
         stderr.writeln("Starting simulation in batch mode");
+
+        char[][] inputs = [];
+        string line;
+        while((line = stdin.readln(batchInputSeparator)) !is null) {
+            line = chomp(line, [batchInputSeparator]);
+            inputs ~= cast(char[])(line);
+        }
+
+        writeln(inputs);
+
+        if (inputs.length != batchCount) {
+            stderr.writefln("Number of inputs (%d) does not match batch count (%d)", inputs.length, batchCount);
+            return;
+        }
+
         stderr.writeln("Creating simulators");
         BatchModeSimulator[] simulators = [];
         for(int i = 0; i < batchCount; ++i) {
@@ -120,10 +137,10 @@ void main(string[] args) {
         }
 
         stderr.writeln("Running simulators");
-        foreach (simulator; parallel(simulators)) {
+        foreach (idx, simulator; parallel(simulators)) {
             writeMemFiles(memFilenames, simulator.machineState);
             simulator.machineState.outputBuffer = new MemoryStream(cast(char [])([]));
-            simulator.machineState.inputBuffer = new MemoryStream(cast(char [])([]));
+            simulator.machineState.inputBuffer = new MemoryStream(inputs[idx]);
             simulator.run();
         }
 
@@ -175,7 +192,8 @@ void writeMemFiles(string[string] filenames, MachineState machineState) {
 void printUsage() {
     stdout.writeln("Usage: ./usim [OPTIONS] <objdump>");
     stdout.writeln("Options: --batch         Use batch mode [false]");
-    stdout.writeln("         --count         Number of batches to run [1]");
+    stdout.writeln("         --count         Batch mode: number of batches to run [1]");
+    stdout.writeln("         --separator     Batch mode: input separator used for dividing input among batches");
     stdout.writeln("         --debug         Use debug mode [false]");
     stdout.writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
     stdout.writefln("                         One of {%-(%s,%)}", machineFactories.keys);
