@@ -4,6 +4,7 @@ import std.stdio;
 import std.conv;
 import std.system;
 import std.string;
+import std.outbuffer;
 
 import spec.base;
 import machine.state;
@@ -90,6 +91,14 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     ReferenceRegister!ushort[3] refregs;
     int resetEEMPECounter = 0;
     long resetEEPECounter = 0;
+    OutBuffer outputBuffer_ = null;
+
+    @property OutBuffer outputBuffer() { return outputBuffer_; }
+    @property OutBuffer outputBuffer(OutBuffer buf) {
+        outputBuffer_ = buf;
+        buf.reserve(128);
+        return this.outputBuffer_;
+    }
 
     @property final size_t programCounter() {
         return instructions.next.address/2;
@@ -226,6 +235,18 @@ final class AvrState(AvrChipSpec chip) : MachineState {
             size_t newPc = data[stackPointer + 1] + (data[stackPointer + 2] << 8)+ (data[stackPointer + 3] << 16);
             stackPointer.value = cast(ushort)(stackPointer.value + 3);
             jump(newPc * 2);
+        }
+    }
+
+    void writeRegisterToOutputBuffer(in size_t reg) {
+        writeToOutputBuffer(cast(char)valueRegisters[reg].value);
+    }
+    void writeToOutputBuffer(char value) {
+        if (outputBuffer_ is null) {
+            stdout.write(value);
+            stdout.flush();
+        } else {
+            outputBuffer.write(value);
         }
     }
 
@@ -1668,8 +1689,7 @@ class Out(AvrChipSpec chip): Instruction!(AvrState!chip) {
         state.getIoRegisterByIo(ioAddr).value = state.valueRegisters[regr].value;
 
         if(ioAddr == chip.UDR && !chip.hasHardwareUart) {
-            write(cast(char)state.valueRegisters[regr].value);
-            stdout.flush();
+            state.writeRegisterToOutputBuffer(regr);
         }
         return 1;
     }
@@ -1716,8 +1736,7 @@ class St(AvrChipSpec chip): AvrInstruction!chip {
             state.refregs[refreg].value = cast(ushort)(state.refregs[refreg].value - 1);
 
         if(addr == chip.UDR) {
-            write(cast(char)state.valueRegisters[regr].value);
-            stdout.flush();
+            state.writeRegisterToOutputBuffer(regr);
         }
         if(chip.chipType != AvrChipSpec.ChipType.OTHER && !predec) {
             return 1;
@@ -1761,7 +1780,7 @@ class Sts(AvrChipSpec chip): Instruction!(AvrState!chip) {
         state.data[dataAddr] = value;
 
         if(dataAddr == chip.UDR) {
-            write(cast(char)value);
+            state.writeToOutputBuffer(cast(char)value);
             stdout.flush();
         }
         return cycles;

@@ -5,6 +5,7 @@ import std.conv;
 import std.bitmanip;
 import std.system;
 import std.string;
+import std.outbuffer;
 import spec.base;
 import parser.parser : InstructionToken;
 import simulator.simulator;
@@ -177,6 +178,9 @@ interface MachineState {
     void relativeJump(in int instructionOffset);
 
     void update(cycleCount cycles);
+
+    @property OutBuffer outputBuffer();
+    @property OutBuffer outputBuffer(OutBuffer buf);
 
     // todo: stack operations
 }

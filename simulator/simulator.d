@@ -29,6 +29,7 @@ interface BatchModeSimulator {
     @property string file(string filepath);
     @property MachineState machineState();
     @property MachineState machineState(MachineState newState);
+    @property SimulatorState state();
 }
 
 struct DebuggerState {
@@ -72,6 +73,7 @@ final class Simulator(T) : BatchModeSimulator {
     @property string file(string newFile) { file_=newFile; return newFile;}
     @property MachineState machineState() { return machineState_; }
     @property MachineState machineState(MachineState newState) { machineState_ = cast(T)(newState); return machineState_; }
+    @property SimulatorState state() { return simulatorState; }
 
     this(T initialState) {
         this.machineState_ = initialState;

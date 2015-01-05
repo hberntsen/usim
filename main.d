@@ -5,6 +5,9 @@ import std.getopt;
 import std.socket;
 import std.string;
 import std.file;
+import std.parallelism;
+import std.array;
+import std.outbuffer;
 
 import parser.parser;
 import spec.avrchips;
@@ -20,6 +23,7 @@ void main(string[] args) {
          batchMode = false;
     string machine = "atmega2560";
     ushort port = 3742;
+    size_t batchCount = 1;
     string[string] memFilenames;
 
     if(args.length < 2) {
@@ -38,6 +42,7 @@ void main(string[] args) {
 
     getopt(args,
             "batch", &batchMode,
+            "count", &batchCount,
             "debug", &debugMode,
             "mcu", &machine,
             "port", &port,
@@ -55,9 +60,9 @@ void main(string[] args) {
     file.close();
 
 
+    // create and initialize simulator
     auto simulatorFactory = machineFactories[machine];
     auto sim = simulatorFactory.createBatchModeSimulator(instructions, data);
-    
     readMemFiles(memFilenames, sim.machineState);
 
     if (debugMode) {
@@ -107,9 +112,32 @@ void main(string[] args) {
             writeln(e);
         }
     } else if (batchMode) {
+        stderr.writeln("Starting simulation in batch mode");
+        stderr.writeln("Creating simulators");
+        BatchModeSimulator[] simulators = [];
+        for(int i = 0; i < batchCount; ++i) {
+            simulators ~= simulatorFactory.createBatchModeSimulator(instructions, data);
+        }
+
+        stderr.writeln("Running simulators");
+        foreach (simulator; parallel(simulators)) {
+            writeMemFiles(memFilenames, simulator.machineState);
+            simulator.machineState.outputBuffer = new OutBuffer();
+            simulator.run();
+        }
+
+        stderr.writeln("Done");
+        foreach (simulator; simulators) {
+            debug stderr.writeln("Buffer:");
+            stdout.writeln(simulator.machineState.outputBuffer());
+            if (showStatistics) {
+                debug stderr.writeln("Stats:");
+                stderr.writeln(simulator.state);
+            }
+        }
     } else {
-        auto simulatorState = sim.run();
         writeMemFiles(memFilenames, sim.machineState);
+        auto simulatorState = sim.run();
         if(showStatistics) {
             stderr.writeln(simulatorState);
         }
@@ -142,6 +170,7 @@ void writeMemFiles(string[string] filenames, MachineState machineState) {
 void printUsage() {
     stdout.writeln("Usage: ./usim [OPTIONS] <objdump>");
     stdout.writeln("Options: --batch         Use batch mode [false]");
+    stdout.writeln("         --count         Number of batches to run [1]");
     stdout.writeln("         --debug         Use debug mode [false]");
     stdout.writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
     stdout.writefln("                         One of {%-(%s,%)}", machineFactories.keys);
