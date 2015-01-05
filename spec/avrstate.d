@@ -4,7 +4,7 @@ import std.stdio;
 import std.conv;
 import std.system;
 import std.string;
-import std.outbuffer;
+import std.stream;
 
 import spec.base;
 import machine.state;
@@ -91,13 +91,32 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     ReferenceRegister!ushort[3] refregs;
     int resetEEMPECounter = 0;
     long resetEEPECounter = 0;
-    OutBuffer outputBuffer_ = null;
+    private MemoryStream outputBuffer_ = null;
+    private MemoryStream inputBuffer_ = null;
 
-    @property OutBuffer outputBuffer() { return outputBuffer_; }
-    @property OutBuffer outputBuffer(OutBuffer buf) {
+    @property MemoryStream outputBuffer() { 
+        return outputBuffer_;
+    }
+
+    @property MemoryStream outputBuffer(MemoryStream buf) {
         outputBuffer_ = buf;
         buf.reserve(128);
         return this.outputBuffer_;
+    }
+
+    @property MemoryStream inputBuffer() { 
+        return inputBuffer_;
+    }
+
+    @property MemoryStream inputBuffer(MemoryStream buf) {
+        inputBuffer_ = buf;
+        buf.reserve(128);
+        return this.inputBuffer_;
+    }
+
+    @property MemoryStream inputBuffer(char[] buf) {
+        inputBuffer_ = new MemoryStream(buf);
+        return inputBuffer_;
     }
 
     @property final size_t programCounter() {
@@ -241,12 +260,25 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     void writeRegisterToOutputBuffer(in size_t reg) {
         writeToOutputBuffer(cast(char)valueRegisters[reg].value);
     }
-    void writeToOutputBuffer(char value) {
+    void writeToOutputBuffer(in char value) {
         if (outputBuffer_ is null) {
             stdout.write(value);
             stdout.flush();
         } else {
-            outputBuffer.write(value);
+            outputBuffer_.write(value);
+        }
+    }
+
+    ubyte readFromInputBuffer() {
+        if (inputBuffer_ is null) {
+            ubyte[1] val;
+            stdin.rawRead!ubyte(val);
+            stdin.flush();
+            return val[0];
+        } else {
+            ubyte val;
+            inputBuffer_.read(val);
+            return val;
         }
     }
 
@@ -1439,10 +1471,8 @@ final class Ld(AvrChipSpec chip): AvrInstruction!chip {
         size_t addr = state.refregs[refreg].value;
 
         if(addr == chip.UDR) {
-            ubyte[1] b;
-            stdin.rawRead!ubyte(b);
-            state.valueRegisters[regd].value = b[0];
-            stdin.flush();
+            ubyte b = state.readFromInputBuffer();
+            state.valueRegisters[regd].value = b;
         } else {
             //reduced core maps the program memory at 0x4000
             if(chip.chipType == AvrChipSpec.ChipType.REDUCED_CORE && addr >= 0x4000) {
@@ -1583,10 +1613,8 @@ class Lds (AvrChipSpec chip): Instruction!(AvrState!chip) {
 
     override cycleCount callback(AvrState!chip state) const {
         if(address == chip.UDR) {
-            ubyte[1] b;
-            stdin.rawRead!ubyte(b);
-            state.valueRegisters[regd].value = b[0];
-            stdin.flush();
+            ubyte b = state.readFromInputBuffer();
+            state.valueRegisters[regd].value = b;
         } else {
             state.valueRegisters[regd].value = state.data[address];
         }

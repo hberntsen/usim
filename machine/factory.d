@@ -1,7 +1,7 @@
 module machine.factory;
 
 import machine.state : MachineState;
-import simulator.simulator : BatchModeSimulator;
+import simulator.simulator;
 import parser.parser : InstructionToken;
 
 abstract class MachineFactory {

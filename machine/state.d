@@ -5,7 +5,7 @@ import std.conv;
 import std.bitmanip;
 import std.system;
 import std.string;
-import std.outbuffer;
+import std.stream;
 import spec.base;
 import parser.parser : InstructionToken;
 import simulator.simulator;
@@ -179,8 +179,12 @@ interface MachineState {
 
     void update(cycleCount cycles);
 
-    @property OutBuffer outputBuffer();
-    @property OutBuffer outputBuffer(OutBuffer buf);
+    @property MemoryStream outputBuffer();
+    @property MemoryStream outputBuffer(MemoryStream buf);
+
+    @property MemoryStream inputBuffer();
+    @property MemoryStream inputBuffer(MemoryStream buf);
+    @property MemoryStream inputBuffer(char [] buf);
 
     // todo: stack operations
 }

@@ -7,7 +7,7 @@ import std.string;
 import std.file;
 import std.parallelism;
 import std.array;
-import std.outbuffer;
+import std.stream : MemoryStream;
 
 import parser.parser;
 import spec.avrchips;
@@ -122,14 +122,19 @@ void main(string[] args) {
         stderr.writeln("Running simulators");
         foreach (simulator; parallel(simulators)) {
             writeMemFiles(memFilenames, simulator.machineState);
-            simulator.machineState.outputBuffer = new OutBuffer();
+            simulator.machineState.outputBuffer = new MemoryStream(cast(char [])([]));
+            simulator.machineState.inputBuffer = new MemoryStream(cast(char [])([]));
             simulator.run();
         }
 
         stderr.writeln("Done");
         foreach (simulator; simulators) {
-            debug stderr.writeln("Buffer:");
-            stdout.writeln(simulator.machineState.outputBuffer());
+            debug stderr.writeln("Input:");
+            stderr.writeln(cast(string)(simulator.machineState.inputBuffer.data));
+            debug stderr.writeln("Output:");
+            // FIXME this is not really how you're supposed to read from the
+            // stream...
+            stdout.writeln(cast(string)(simulator.machineState.outputBuffer.data));
             if (showStatistics) {
                 debug stderr.writeln("Stats:");
                 stderr.writeln(simulator.state);
