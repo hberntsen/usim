@@ -14,6 +14,12 @@ class EOFException : Exception {
     }
 }
 
+class InvalidAddressException : Exception {
+    this(string msg) {
+        super(msg);
+    }
+}
+
 abstract class Instruction(T) {
     cycleCount callback(T state) const;
 
@@ -85,7 +91,12 @@ struct InstructionsWrapper(T) {
 
     protected void optimize() {
         foreach(instr; instructions) {
-            instr.optimize(this);
+            try {
+                instr.optimize(this);
+            }
+            //With PROGMEM we interpret data as instructions which want to jump
+            //to invalid addresses. Ignore those.
+            catch(InvalidAddressException e) {}
         }
     }
 
@@ -154,17 +165,19 @@ struct InstructionsWrapper(T) {
         while(instructions[guess].address != requestedAddress) {
             prev = d;
             if(instructions[guess].address > requestedAddress) {
-                enforce(guess > 0,"Instruction not found(underflow in search)");
+                if(guess <= 0)
+                    throw new InvalidAddressException("Instruction not found(underflow in search)");
                 guess--;
                 d = Direction.DOWN;
             } else if(instructions[guess].address < requestedAddress) {
-                enforce(guess < instructions.length-1,"Instruction not
-                        found(overflow in search)");
+                if(guess >= instructions.length -1)
+                    throw new InvalidAddressException("Instruction not found(overflow in search)");
                 guess++;
                 d = Direction.UP;
             }
-            enforce(d == prev || prev == Direction.UNSET,
-                format("No instruction at specified address: %x", requestedAddress));
+            if(d != prev && prev != Direction.UNSET)
+                throw new InvalidAddressException(
+                        format("No instruction at specified address: %x", requestedAddress));
         }
         return guess;
     }
