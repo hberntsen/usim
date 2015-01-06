@@ -2603,7 +2603,6 @@ class Sleep (AvrChipSpec chip): Instruction!(AvrState!chip) {
     }
 }
 
-//todo reduced core / xmega cycles
 class Std (AvrChipSpec chip): AvrInstruction!chip {
     size_t refreg;
     uint q;
