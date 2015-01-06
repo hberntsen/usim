@@ -1508,7 +1508,6 @@ final class Ld(AvrChipSpec chip): AvrInstruction!chip {
     }
 }
 
-//todo: reduced core
 class Ldd (AvrChipSpec chip): AvrInstruction!chip {
     immutable uint q;
     immutable uint regd;
@@ -1525,7 +1524,6 @@ class Ldd (AvrChipSpec chip): AvrInstruction!chip {
     override cycleCount callback(AvrState!chip state) const {
         size_t addr = state.refregs[refreg].value + q;
         state.valueRegisters[regd].value = state.data[addr];
-        //stderr.writefln("addr: 0x%x, %d, q: %d, v: 0x%x", addr, addr, q, state.data[addr]);
         return 2;
     }
 }
