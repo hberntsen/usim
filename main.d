@@ -21,7 +21,8 @@ void main(string[] args) {
     string filename;
     bool showStatistics = true,
          debugMode = false,
-         batchMode = false;
+         batchMode = false,
+         showHelp = false;
     string machine = "atmega2560";
     char batchInputSeparator = '\n';
     ushort port = 3742;
@@ -29,6 +30,21 @@ void main(string[] args) {
     string[string] memFilenames;
 
     if(args.length < 2) {
+        printUsage();
+        return;
+    }
+
+    getopt(args,
+            "help", &showHelp,
+            "batch", &batchMode,
+            "count", &batchCount,
+            "debug", &debugMode,
+            "mcu", &machine,
+            "port", &port,
+            "stats", &showStatistics,
+            "memfile", &memFilenames);
+
+    if (showHelp) {
         printUsage();
         return;
     }
@@ -41,15 +57,6 @@ void main(string[] args) {
         stderr.writeln("File ", filename, " could not be read");
         return;
     }
-
-    getopt(args,
-            "batch", &batchMode,
-            "count", &batchCount,
-            "debug", &debugMode,
-            "mcu", &machine,
-            "port", &port,
-            "stats", &showStatistics,
-            "memfile", &memFilenames);
 
     if(!(machine in machineFactories)) {
         stderr.writefln("MCU %s not known, valid options: %s", machine,
@@ -193,7 +200,7 @@ void printUsage() {
     stdout.writeln("Usage: ./usim [OPTIONS] <objdump>");
     stdout.writeln("Options: --batch         Use batch mode [false]");
     stdout.writeln("         --count         Batch mode: number of batches to run [1]");
-    stdout.writeln("         --separator     Batch mode: input separator used for dividing input among batches");
+    stdout.writeln("         --separator     Batch mode: input separator used for dividing input among batches [\\n]");
     stdout.writeln("         --debug         Use debug mode [false]");
     stdout.writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
     stdout.writefln("                         One of {%-(%s,%)}", machineFactories.keys);
