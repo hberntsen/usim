@@ -1645,10 +1645,9 @@ class Lpm (AvrChipSpec chip): Instruction!(AvrState!chip) {
         state.valueRegisters[regd].value = value;
 
         if(postinc) {
-            z = cast(ushort)(z + 1);
+            state.zreg.value = cast(ushort)(z + 1);
         }
 
-        state.zreg.value = z;
         return 3;
     }
 }
