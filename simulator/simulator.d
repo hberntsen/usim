@@ -22,16 +22,6 @@ struct SimulatorState {
     }
 }
 
-interface BatchModeSimulator {
-    SimulatorState run(bool withBreakpoints = false);
-    string handleDebugCommand(string command);
-    @property string file();
-    @property string file(string filepath);
-    @property MachineState machineState();
-    @property MachineState machineState(MachineState newState);
-    @property SimulatorState state();
-}
-
 struct DebuggerState {
     private string[size_t] breakpoints;
     private ushort nextId = 0;
@@ -63,8 +53,19 @@ struct DebuggerState {
     }
 }
 
+interface Simulator {
+    SimulatorState run(bool withBreakpoints = false);
+    string handleDebugCommand(string command);
+
+    @property string file();
+    @property string file(string filepath);
+    @property MachineState machineState();
+    @property MachineState machineState(MachineState newState);
+    @property SimulatorState state();
+}
+
 //Input: initial machine state (code is part of the machine state)
-final class Simulator(T) : BatchModeSimulator {
+final class AvrSimulator(T) : Simulator {
     private T machineState_;
     SimulatorState simulatorState;
     DebuggerState debuggerState;

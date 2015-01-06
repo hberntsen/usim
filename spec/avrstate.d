@@ -3088,9 +3088,9 @@ class AvrFactory(AvrChipSpec chip) : MachineFactory {
         return instructions;
     }
 
-    override BatchModeSimulator createBatchModeSimulator(in InstructionToken[] tokens,
+    override Simulator createSimulator(in InstructionToken[] tokens,
             in ubyte[] data) const {
-        return new Simulator!(AvrState!chip)(
+        return new AvrSimulator!(AvrState!chip)(
                 cast(AvrState!chip)createState(tokens, data));
     }
 

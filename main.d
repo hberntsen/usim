@@ -71,7 +71,7 @@ void main(string[] args) {
 
     // create and initialize simulator
     auto simulatorFactory = machineFactories[machine];
-    auto sim = simulatorFactory.createBatchModeSimulator(instructions, data);
+    auto sim = simulatorFactory.createSimulator(instructions, data);
     readMemFiles(memFilenames, sim.machineState);
 
     if (debugMode) {
@@ -138,9 +138,9 @@ void main(string[] args) {
         }
 
         stderr.writeln("Creating simulators");
-        BatchModeSimulator[] simulators = [];
+        Simulator[] simulators = [];
         for(int i = 0; i < batchCount; ++i) {
-            simulators ~= simulatorFactory.createBatchModeSimulator(instructions, data);
+            simulators ~= simulatorFactory.createSimulator(instructions, data);
         }
 
         stderr.writeln("Running simulators");
