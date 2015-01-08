@@ -95,7 +95,7 @@ InstructionToken[] parse(File file, out ubyte[] data) {
     int i = 0;
     string line;
     string currentSection;
-    ubyte[] dataSection;
+    ubyte[size_t] dataSection;
     bool nopping = false;
     InstructionToken previous = null;
 
@@ -120,12 +120,19 @@ InstructionToken[] parse(File file, out ubyte[] data) {
 
         }
         else if (currentSection == ".data") {
-            dataSection ~= token.raw;
+            foreach (idx, b; token.raw) {
+                dataSection[token.address + idx] = b;
+            }
+            //dataSection ~= token.raw;
         }
         lineNumber++;
     }
     instructions.length = i;
-    data ~= dataSection;
+
+    foreach (addr; dataSection.keys.sort) {
+        data ~= dataSection[addr];
+    }
+    //data ~= dataSection;
     return instructions;
 }
 

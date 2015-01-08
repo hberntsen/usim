@@ -160,8 +160,8 @@ final class Simulator(T) : BatchModeSimulator {
                     auto sp = machineState_.stackPointer;
                     //auto initialSp = cast(ushort)(machineState_.data.size - 2); // TODO configurable?
 
-                    writefln("sp: %s, datalen: %x", sp,
-                            cast(ushort)(machineState_.data.length));
+                    //writefln("sp: %s, datalen: %x", sp,
+                            //cast(ushort)(machineState_.data.length));
                     if (sp.value  + 1 > machineState_.data.length) {
                         return format("Error when reading stack, SP: %s", sp);
                     }

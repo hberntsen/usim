@@ -1806,7 +1806,6 @@ class Sts(AvrChipSpec chip): Instruction!(AvrState!chip) {
 
         if(dataAddr == chip.UDR) {
             state.writeToOutputBuffer(cast(char)value);
-            stdout.flush();
         }
         return cycles;
     }
