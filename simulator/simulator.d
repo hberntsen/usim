@@ -94,7 +94,7 @@ final class Simulator(T) : BatchModeSimulator {
             "stack": "show stack content at the given address range",
             "instruction": "show the precise instruction under execution",
             "summary": "show a summary of possibly relevant information",
-            "help": "show helpful infomration for `show`"
+            "help": "show helpful information for `show`"
         ];
 
         auto commandAbbrev = abbrev(commands.keys);
@@ -239,27 +239,31 @@ final class Simulator(T) : BatchModeSimulator {
                     return format("%(- %s %|\n%)\n", commands);
             }
         }
-        return "Unknown command: " ~ parameters[0] ~ "\n";
+        return "Unknown command: show " ~ parameters[0] ~ "\n";
     }
 
     private string handleSetCommand(string[] parameters) {
         string[string] commands = [
-            "breakpoint": "set a breakpoint by linenumber",
+            "breakpoint": "set a breakpoint by line number",
+            "help":  "show helpful information for `set`"
         ];
         auto commandAbbrev = abbrev(commands.keys);
 
-        switch (commandAbbrev[parameters[0]]) {
-            case "breakpoint":
-                if (parameters.length < 2) {
-                    return "Usage: `set breakpoint <linenumber>`\n";
-                }
-                size_t breakpoint = to!size_t(parameters[1]);
-                debuggerState.setBreakpoint(breakpoint);
-                return format("Breakpoint set at line %d\n", breakpoint);
-            case "help":
-            default :
-                return format("%(- %s %|\n%)\n", commands);
+        if (parameters[0] in commandAbbrev) {
+            switch (commandAbbrev[parameters[0]]) {
+                case "breakpoint":
+                    if (parameters.length < 2) {
+                        return "Usage: `set breakpoint <linenumber>`\n";
+                    }
+                    size_t breakpoint = to!size_t(parameters[1]);
+                    debuggerState.setBreakpoint(breakpoint);
+                    return format("Breakpoint set at line %d\n", breakpoint);
+                case "help":
+                default :
+                    return format("%(- %s %|\n%)\n", commands);
+            }
         }
+        return "Unknown command: set " ~ parameters[0] ~ "\n";
     }
 
     public string handleDebugCommand(string command) {
