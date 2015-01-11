@@ -20,7 +20,12 @@ class InvalidAddressException : Exception {
     }
 }
 
-abstract class Instruction(T) {
+// XXX this interface is a hack until I figure out something better -Erik
+interface InstructionI {
+    public string toString() const;
+}
+
+abstract class Instruction(T) : InstructionI {
     cycleCount callback(T state) const;
 
     this(in InstructionToken token) {
