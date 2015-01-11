@@ -197,16 +197,19 @@ void writeMemFiles(string[string] filenames, MachineState machineState) {
 }
 
 void printUsage() {
-    stdout.writeln("Usage: ./usim [OPTIONS] <objdump>");
-    stdout.writeln("Options: --batch         Use batch mode [false]");
-    stdout.writeln("         --count         Batch mode: number of batches to run [1]");
-    stdout.writeln("         --separator     Batch mode: input separator used for dividing input among batches [\\n]");
-    stdout.writeln("         --debug         Use debug mode [false]");
-    stdout.writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
-    stdout.writefln("                         One of {%-(%s,%)}", machineFactories.keys);
-    stdout.writeln("         --port <nr>     Set port for debugger [3742]");
-    stdout.writeln("         --stats=false   Show statistics [true]");
-    stdout.writeln("         --memfile <memtype=filename> Files that contain initial memory at");
-    stdout.writeln("                         start and to which final memory contents are written");
-    stdout.writeln("Note that <objdump> is the output of `avr-objdump -D -z <binary>`");
+    writeln("Usage: ./usim [OPTIONS] <objdump>");
+    writeln("Where <objdump> is the output of `avr-objdump -D -z <binary>`");
+    writeln("Options: --help          Print this");
+    writeln("         --debug         Use debug mode [false]");
+    writeln("         --port <nr>     Debug mode: set port to listen on [3742]");
+    writeln("         --batch         Use batch mode [false]");
+    writeln("         --count         Batch mode: number of batches to run [1]");
+    writeln("         --separator     Batch mode: input separator used for dividing input");
+    writeln("                         among batches [\\n]");
+    writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
+    writefln("                         One of {%-(%s,%)}", machineFactories.keys);
+    writeln("         --stats=false   Show statistics [true]");
+    writeln("         --memfile <memtype=filename> Files that contain initial memory at");
+    writeln("                         start and to which final memory contents are written");
+    
 }
