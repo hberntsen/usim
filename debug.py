@@ -6,6 +6,7 @@ import socket
 import sys
 import getopt
 import math
+import itertools
 
 class Window(urwid.BoxAdapter):
     def __init__(self, body, title = "Unknown title", height = 34):
@@ -23,11 +24,13 @@ class Window(urwid.BoxAdapter):
         )
         super(Window, self).__init__(self.frame, height)
 
+    def selectable(self):
+        return False
+
 class Command:
     def __init__(self, command = b"show"):
         self.command = command
         self.response = b""
-        self.history = []
 
     def executeCommand(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,8 +44,6 @@ class Command:
         sock.close()
 
         self.edit_text = ""
-
-        self.history.append(self.command)
 
         return self.response
 
@@ -93,17 +94,20 @@ class CommandView(Window):
 
         if self.lastResponse:
             contents  = []
-            for (last, current) in zip(self.lastResponse, lines):
+            for (last, current) in itertools.zip_longest(self.lastResponse, lines, fillvalue=''):
                 if last == current:
                     contents.append(urwid.Text(current))
                 else:
                     contents.append(urwid.Text(('change', current)))
         else:
-            contents  = [urwid.Text(line) for line in lines]
+            contents = [urwid.Text(line) for line in lines]
 
         self.box.body[:] = contents
 
         self.lastResponse = lines
+
+        #with open("focus.log", "a") as f: f.write("%s" % self.box.focus_position)
+
 
     def selectable(self):
         return False
@@ -112,9 +116,7 @@ class MultipleCommandView(urwid.Pile):
     def __init__(self, commands):
         clen = len(commands);
         lengths = [math.floor(34 / clen) for c in commands];
-        print(lengths)
         lengths[-1] += 34 - sum(lengths)
-        print(lengths)
 
         views = [CommandView(cmd, height) for (cmd, height) in zip(commands, lengths)]
         super(MultipleCommandView, self).__init__(views)
@@ -176,24 +178,45 @@ class CliOutput(CommandView):
 
 class Info(urwid.Columns):
     def __init__(self):
-        super(Info, self).__init__([], 2)
+        super(Info, self).__init__([], 1)
 
 class CliEdit(urwid.Edit):
     __metaclass__  = urwid.signals.MetaSignals
     signals = ["executed"]
 
     def __init__(self):
+        self.history = []
+        self.historyIdx = -1
+
         super(CliEdit, self).__init__(('ps1', '>>> '))
 
 
     def keypress(self, size, key):
-        if key != 'enter':
-            return super(CliEdit, self).keypress(size, key)
-        self.command = Command(self.edit_text)
-        self.command.executeCommand()
-        self.edit_text = ""
+        if key == 'enter':
+            self.command = Command(self.edit_text)
+            self.command.executeCommand()
 
-        urwid.emit_signal(self, "executed")
+            self.history.append(self.edit_text)
+            self.historyIdx = -1
+
+            self.edit_text = ""
+
+            urwid.emit_signal(self, "executed")
+        elif key == 'up':
+            if len(self.history) != 0:
+                self.edit_text = self.history[self.historyIdx]
+                self.edit_pos = len(self.edit_text)
+                if self.historyIdx - 1 >= -1 * len(self.history):
+                    self.historyIdx -= 1
+        elif key == "down":
+            if self.historyIdx == -1:
+                self.edit_text = "";
+            else:
+                self.historyIdx += 1
+                self.edit_text = self.history[self.historyIdx]
+                self.edit_pos = len(self.edit_text)
+        else:
+            return super(CliEdit, self).keypress(size, key)
 
 
 class Root(urwid.Frame):
@@ -212,9 +235,10 @@ class Root(urwid.Frame):
         self.cliOutput = CliOutput()
         self.infoBottom = Info()
         self.infoBottom.contents = [
-                (CommandView("show"), self.info.options('weight', 1)),
-                (self.cliOutput, self.info.options('weight', 2)),
-                (CommandView("show data 0x0200"), self.info.options('weight', 1)),
+                (CommandView("show state"), self.info.options('weight', 1)),
+                (CommandView("show data 0x50 0x5f"), self.info.options('weight', 1)),
+                (self.cliOutput, self.info.options('weight', 4)),
+                (CommandView("show since"), self.info.options('weight', 2)),
         ]
 
         self.pile = urwid.Pile([self.info, self.infoBottom])
@@ -225,9 +249,12 @@ class Root(urwid.Frame):
         super(Root, self).__init__(self.filler, footer = self.footer, focus_part='footer')
 
     def keypress(self, size, key):
+        global cli
         trans = {'page up': 'up', 'page down': 'down' }
         if key in trans:
-            return self.cliOutput.box.keypress(size, trans[key])
+            return self.cliOutput.box.keypress((size[0], 1), trans[key])
+        elif key in ['up', 'down']:
+            return cli.keypress(size, key)
         return super(Root, self).keypress(size, key)
 
 cli = CliEdit()

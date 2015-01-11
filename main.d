@@ -75,7 +75,8 @@ void main(string[] args) {
     readMemFiles(memFilenames, sim.machineState);
 
     if (debugMode) {
-        sim.file = filename;
+        auto debugSim = cast(DebugSimulator)(sim);
+        debugSim.file = filename;
         debug writefln("Opening a socket for the debugger", port);
         Socket s = new TcpSocket;
         scope(exit) {
@@ -113,7 +114,7 @@ void main(string[] args) {
 
                     debug stderr.writefln("%s", buffer[0 .. len]);
 
-                    string response = sim.handleDebugCommand(buffer[0 ..  len].dup);
+                    string response = debugSim.handleDebugCommand(buffer[0 ..  len].dup);
                     input.send(response);
                 } while (len != Socket.ERROR && len != 0);
             }

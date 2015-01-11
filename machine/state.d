@@ -16,7 +16,7 @@ abstract class Register
     bool reverse = false;
 
     @property string name() {
-        return name;
+        return _name;
     }
 
     override string toString() {

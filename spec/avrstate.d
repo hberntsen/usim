@@ -136,7 +136,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
         stackPointer.reverse = true;
         if(chip.valueRegistersInDataMemory) {
             for(int i = 0; i < valueRegisters.length; i++) {
-                valueRegisters[i] = new ReferenceRegister!ubyte("r" ~ i.stringof, i, data);
+                valueRegisters[i] = new ReferenceRegister!ubyte(format("r%d", i), i, data);
             }
 
             for(int i = 0; i < ioRegisters.length; i++) {
@@ -151,8 +151,7 @@ final class AvrState(AvrChipSpec chip) : MachineState {
             Memory registerStorage = new Memory(valueRegisters.length, 0);
 
             for(size_t i = 0; i < valueRegisters.length; i++) {
-                valueRegisters[i] = new ReferenceRegister!ubyte("r" ~
-                        i.stringof, i, registerStorage);
+                valueRegisters[i] = new ReferenceRegister!ubyte(format("r%d", i), i, registerStorage);
             }
 
             for(size_t i = 0; i < ioRegisters.length; i++) {
