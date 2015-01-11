@@ -50,7 +50,7 @@ $ cat myinputs | ./usim --batch --count $(wc -l < myinputs) myprogram.dump
 
 ### More options
 
-`./usim` lists all configurable options for the simulator. Noteworthy is that initial raw memory contents may be read from files, just as the final state of the raw memory may be written to files. E.g. `--memfile eeprom=myeeprom.bin data=mydata.bin`. Finally, a different microcontroller can be selected using, for instance, `--mcu atmega328` and the statistics can be hidden with `--stats=false`.
+`./usim` lists all configurable options for the simulator. Noteworthy is that initial raw memory contents may be read from files, just as the final state of the raw memory may be written to files. E.g. `--memfile eeprom=myeeprom.bin --memfile data=mydata.bin`. Finally, a different microcontroller can be selected using, for instance, `--mcu atmega328` and the statistics can be hidden with `--stats=false`.
 
 ## Extending to other platforms
 
