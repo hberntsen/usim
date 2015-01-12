@@ -207,6 +207,8 @@ final class AvrState(AvrChipSpec chip) : MachineState {
         instructions.relativeJump(instructionOffset);
     }
 
+    // Updates cyclecounters for events that take place after a certain
+    // amount of cycles. Necessary for EEPROM.
     void update(cycleCount cycles) {
         if(resetEEMPECounter > 0) {
             resetEEMPECounter -= cycles;
@@ -2738,17 +2740,20 @@ class Sbi(AvrChipSpec chip): Instruction!(AvrState!chip) {
         if(chip.chipType == AvrChipSpec.ChipType.OTHER) {
             cycles = 2;
         }
+        //Do something special for the EEPROM Control Register
+        //so EEPROM can be written using the Sbi instruction
         if(address == chip.EECR) {
             ubyte controlRegister = state.ioRegisters[address].value;
             size_t EEARval = state.ioRegisters[chip.EEARH].value << 8 | state.ioRegisters[chip.EEARL].value;
             if(bit == chip.EEMPE) {
-                state.resetEEMPECounter = 4 + cycles;
+                state.resetEEMPECounter = 4 + cycles; //EEMPE is reset 4 cycles after finishing this instruction
             }
             if(bit == chip.EEPE) {
                 if(controlRegister & chip.EEMPEMask) {
                     state.eeprom[EEARval] = state.ioRegisters[chip.EEDR].value;
                     state.resetEEPECounter = (chip.EEPROMWriteTime * chip.clockSpeed + 500000) / 1000000 + cycles;
                         //5e5 is for ceiling, 1e6 is to match units (us and Hz), also add cycles for current instruction
+                        //Writing is finished after that time, and EEPE is reset after that.
                     cycles += 4; //chip is halted for 4 cycles
                 }
             }
