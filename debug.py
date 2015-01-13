@@ -193,12 +193,14 @@ class CliEdit(urwid.Edit):
 
     def keypress(self, size, key):
         if key == 'enter':
-            self.command = Command(self.edit_text)
+            if self.edit_text == "" and self.history:
+                self.command = Command(self.history[-1])
+            else:
+                self.command = Command(self.edit_text)
+                self.history.append(self.edit_text)
+
             self.command.executeCommand()
-
-            self.history.append(self.edit_text)
             self.historyIdx = -1
-
             self.edit_text = ""
 
             urwid.emit_signal(self, "executed")
