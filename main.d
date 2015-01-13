@@ -88,7 +88,7 @@ void main(string[] args) {
             s.bind(new InternetAddress(port));
 
             s.listen(10);
-            debug writefln("Listening on port %d", port);
+            stderr.writefln("Listening on port %d", port);
 
             while (true) {
                 Socket input = s.accept();

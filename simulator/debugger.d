@@ -190,11 +190,7 @@ class MemoryCommand(T) : DebugCommand {
     private size_t parseOffset(string input) {
         if (input.length >= 3 && input[0 .. 2] == "0x") {
             string numeric = input[2 .. $];
-            if (isNumeric(numeric)) {
-                return parse!size_t(numeric, 16);
-            } else {
-                return -1;
-            }
+            return parse!size_t(numeric, 16);
         } else if (isNumeric(input)) {
             return to!size_t(input);
         } else {
@@ -223,7 +219,7 @@ class MemoryCommand(T) : DebugCommand {
         } else {
             end = parseOffset(input[1]);
             if (end == -1) {
-                return format("'last' (%s) is not a valid offset in either integer of hexadecimal representation\n");
+                return format("'last' (%s) is not a valid offset in either integer of hexadecimal representation\n", input[1]);
             }
         }
 
