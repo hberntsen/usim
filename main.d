@@ -26,7 +26,7 @@ void main(string[] args) {
     string machine = "atmega2560";
     char batchInputSeparator = '\n';
     ushort port = 3742;
-    size_t batchCount = 1;
+    size_t batchCount = -1;
     string[string] memFilenames;
 
     if(args.length < 2) {
@@ -131,7 +131,9 @@ void main(string[] args) {
             inputs ~= cast(char[])(line);
         }
 
-        writeln(inputs);
+        if (batchCount == -1) {
+            batchCount = inputs.length;
+        }
 
         if (inputs.length != batchCount) {
             stderr.writefln("Number of inputs (%d) does not match batch count (%d)", inputs.length, batchCount);
@@ -204,7 +206,7 @@ void printUsage() {
     writeln("         --debug         Use debug mode [false]");
     writeln("         --port <nr>     Debug mode: set port to listen on [3742]");
     writeln("         --batch         Use batch mode [false]");
-    writeln("         --count         Batch mode: number of batches to run [1]");
+    writeln("         --count         Batch mode: number of batches to run");
     writeln("         --separator     Batch mode: input separator used for dividing input");
     writeln("                         among batches [\\n]");
     writeln("         --mcu <mcu>     Select microcontroller [atmega2560]");
