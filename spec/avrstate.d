@@ -4,7 +4,6 @@ import std.stdio;
 import std.conv;
 import std.system;
 import std.string;
-import std.stream;
 
 import spec.base;
 import machine.state;
@@ -91,31 +90,24 @@ final class AvrState(AvrChipSpec chip) : MachineState {
     ReferenceRegister!ushort[3] refregs;
     int resetEEMPECounter = 0;
     long resetEEPECounter = 0;
-    private MemoryStream outputBuffer_ = null;
-    private MemoryStream inputBuffer_ = null;
+    private ubyte[] outputBuffer_ = null;
+    private ubyte[] inputBuffer_ = null;
 
-    @property MemoryStream outputBuffer() { 
+    @property ubyte[] outputBuffer() { 
         return outputBuffer_;
     }
 
-    @property MemoryStream outputBuffer(MemoryStream buf) {
-        outputBuffer_ = buf;
-        buf.reserve(128);
+    @property ubyte[] outputBuffer(ubyte[] buf) {
+        outputBuffer_ = buf.dup;
         return this.outputBuffer_;
     }
 
-    @property MemoryStream inputBuffer() { 
+    @property ubyte[] inputBuffer() { 
         return inputBuffer_;
     }
 
-    @property MemoryStream inputBuffer(MemoryStream buf) {
-        inputBuffer_ = buf;
-        buf.reserve(128);
-        return this.inputBuffer_;
-    }
-
-    @property MemoryStream inputBuffer(char[] buf) {
-        inputBuffer_ = new MemoryStream(buf);
+    @property ubyte[] inputBuffer(ubyte[] buf) {
+        inputBuffer_ = buf.dup;
         return inputBuffer_;
     }
 
@@ -277,8 +269,8 @@ final class AvrState(AvrChipSpec chip) : MachineState {
             stdin.flush();
             return val[0];
         } else {
-            ubyte val;
-            inputBuffer_.read(val);
+            ubyte val = inputBuffer_[0];
+            inputBuffer_[] = inputBuffer_[1 .. inputBuffer_.length];
             return val;
         }
     }
