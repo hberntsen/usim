@@ -1,5 +1,6 @@
 module spec.avrstate;
 
+import std.exception : enforce;
 import std.stdio;
 import std.conv;
 import std.system;
